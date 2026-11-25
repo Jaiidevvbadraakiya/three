@@ -4,7 +4,7 @@ A single-file web app (`index.html`) for drawing, editing, importing and exporti
 
 ## What it does
 
-**Open / place:** SVG, DXF (ASCII, R12–2018), PDF and Illustrator `.ai` files saved with PDF compatibility (first page), PNG/JPG/WebP images, and Vellum project files (`.vellum.json`). Drag and drop or paste SVG code also work.
+**Open / place:** SVG, DXF (ASCII, R12–2018), DWG (R14–2018, via LibreDWG), PDF and Illustrator `.ai` files saved with PDF compatibility (first page), PNG/JPG/WebP images, and Vellum project files (`.vellum.json`). Drag and drop or paste SVG code also work.
 
 **Draw & edit:** select/move/scale/rotate, edit points and Bézier handles, pen, pencil, line, rectangle (with corner radius), ellipse, polygon, star, text. Fill, stroke, width, dashes, opacity. Group/ungroup, arrange, align, flip, boolean ops (unite, minus, overlap, exclude), undo/redo, grid and snapping, artboard presets (A-series, US sizes, laser bed), units (mm, cm, in, pt, px). Works with mouse, keyboard shortcuts, and touch (pinch to zoom).
 
@@ -19,8 +19,10 @@ Your drawing autosaves in the browser. Use **Save project** to keep an editable 
 
 - DXF import skips hatches, images, meshes and 3D solids; binary DXF is not supported.
 - PDF import reads paths and text from page 1; embedded images are skipped, and text is re-created with a standard font.
-- EPS, CDR and DWG can't be read in the browser — convert to SVG, PDF or DXF first.
+- DWG import skips pattern hatches (solid fills are kept), 3D solids, images, multileaders and tables. Very old (pre-R13) files may not open.
+- DWG/DXF drawings larger than 1.5 m are placed on an A3 sheet at a standard scale (1:50, 1:100, …) so line weights stay visible; press Undo once for real size.
+- EPS and CDR can't be read in the browser — convert to SVG, PDF or DXF first.
 
 ## Libraries (loaded from jsDelivr)
 
-[Paper.js](http://paperjs.org) 0.12.17 · [jsPDF](https://github.com/parallax/jsPDF) 2.5.1 · [pdf.js](https://mozilla.github.io/pdf.js/) 3.11.174 (only loaded when you open a PDF)
+[Paper.js](http://paperjs.org) 0.12.17 · [jsPDF](https://github.com/parallax/jsPDF) 2.5.1 · [pdf.js](https://mozilla.github.io/pdf.js/) 3.11.174 (only loaded when you open a PDF) · [libredwg-web](https://github.com/mlightcad/libredwg-web) 0.9.4, LibreDWG compiled to WebAssembly, GPL-3.0 (≈8 MB, only loaded when you open a DWG)

@@ -193,7 +193,7 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
   <header class="topbar" aria-label="File and view">
     <div class="brand"><b>Vellum</b><span>vector</span></div>
     <button class="btn" id="btnNew" title="New drawing (undo brings it back)">New</button>
-    <button class="btn" id="btnOpen" title="Open SVG, DXF, PDF, image or project — replaces the drawing">Open…</button>
+    <button class="btn" id="btnOpen" title="Open SVG, DXF, DWG, PDF, image or project — replaces the drawing">Open…</button>
     <button class="btn" id="btnPlace" title="Add a file into the current drawing">Place…</button>
     <button class="btn hide-narrow" id="btnSaveProject" title="Save an editable project file (.json)">Save project</button>
     <div class="sep"></div>
@@ -388,7 +388,7 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
           <label class="check"><input type="checkbox" id="snap"> Snap to grid</label>
         </div>
         <button class="mini" id="btnFitArtboard">Fit artboard to artwork</button>
-        <p class="note">Opens SVG, DXF, PDF/AI, PNG, JPG and Vellum projects. Exports SVG, PDF and DXF at real size.</p>
+        <p class="note">Opens SVG, DXF, DWG, PDF/AI, PNG, JPG and Vellum projects. Exports SVG, PDF and DXF at real size.</p>
       </section>
     </aside>
   </div>
@@ -2310,12 +2310,14 @@ function buildDXFItems(dxf) {
           item = null;
           break;
         }
+        case '_RAW': item = e.make(F); filled = !!e.filled; break;
         case 'HATCH': case 'VIEWPORT': case 'IMAGE': case 'REGION': case '3DSOLID': case 'MESH': case 'WIPEOUT': skipped++; break;
         default: break;
       }
       if (item) {
         const col = colorFor(e, ctx);
         if (item instanceof PointText) item.fillColor = col;
+        else if (e.type === '_RAW' && e.filled) { item.fillColor = col; item.strokeColor = null; }
         else {
           item.strokeColor = col;
           const lw = gn(e, 370, -1);
@@ -2331,6 +2333,24 @@ function buildDXFItems(dxf) {
   const items = build(dxf.entities, { depth: 0 });
   return { items, skipped };
 }
+// Large CAD drawings (buildings, sites) are put on an A3 sheet at a standard scale so line weights stay
+// visible; real size stays one Undo away.
+function fitCadToSheet(g) {
+  const b = g.strokeBounds;
+  if (Math.max(b.width, b.height) <= 1500) return null;
+  const sheet = b.width >= b.height ? [420, 297] : [297, 420];
+  const m = 10;
+  const need = Math.max(b.width / (sheet[0] - 2 * m), b.height / (sheet[1] - 2 * m));
+  let ratio = null;
+  for (let p = 0; !ratio && p < 12; p++) for (const n of [1, 2, 2.5, 5]) { const r = n * 10 ** p; if (r >= need) { ratio = r; break; } }
+  if (!ratio) return null;
+  g.scale(1 / ratio, b.center);
+  g.position = new Point(sheet[0] / 2, sheet[1] / 2);
+  doc.w = sheet[0]; doc.h = sheet[1];
+  drawArtboard(); drawGrid(); syncDocInputs();
+  setSelection([g]); fitView(); commit();
+  return ratio;
+}
 const DXF_UNITS = { 0: 1, 1: 25.4, 2: 304.8, 4: 1, 5: 10, 6: 1000, 7: 1e6, 8: 25.4e-6, 9: 0.0254, 10: 914.4, 11: 1e-7, 12: 1e-6, 13: 1e-3, 14: 100, 15: 10000, 16: 100000 };
 function importDXFText(text, fileName, mode) {
   let dxf;
@@ -2344,7 +2364,199 @@ function importDXFText(text, fileName, mode) {
   if (f !== 1) g.scale(f, new Point(0, 0));
   if (mode === 'open') artLayer.removeChildren();
   placeImported(g, null, fileName, mode);
-  if (skipped) toast(`Imported. ${skipped} unsupported item${skipped === 1 ? '' : 's'} (hatches, images, meshes) skipped.`, 4000);
+  const ratio = mode === 'open' ? fitCadToSheet(g) : null;
+  const notes = [];
+  if (ratio) notes.push(`Scaled 1:${ratio} to fit an A3 sheet — Undo for real size`);
+  if (skipped) notes.push(`${skipped} unsupported item${skipped === 1 ? '' : 's'} (hatches, images, meshes) skipped`);
+  if (notes.length) toast('Imported. ' + notes.join(' · '), 5500);
+}
+
+/* ----- DWG reader (LibreDWG compiled to WebAssembly, loaded on first use) -----
+   LibreDWG parses the binary file; its entities are translated into the same
+   group-code form the DXF reader uses, so both formats share one drawing path. */
+const LIBREDWG = 'https://cdn.jsdelivr.net/npm/@mlightcad/libredwg-web@0.9.4';
+let dwgReady = null;
+function ensureLibreDwg() {
+  if (!dwgReady) {
+    dwgReady = (async () => {
+      const wrap = await import(LIBREDWG + '/dist/libredwg-web.js');
+      let bytes = null, lastErr = null;
+      // CDN first; a copy published next to the page is the fallback where cross-site fetches are blocked
+      for (const u of [LIBREDWG + '/wasm/libredwg-web.wasm', 'libredwg-web.wasm']) {
+        try { const r = await fetch(u); if (r.ok) { bytes = new Uint8Array(await r.arrayBuffer()); break; } } catch (e) { lastErr = e; }
+      }
+      if (!bytes) throw lastErr || new Error('DWG engine download failed');
+      const inst = await wrap.createModule({ wasmBinary: bytes });
+      return { wrap, lib: wrap.LibreDwg.createByWasmInstance(inst) };
+    })();
+    dwgReady.catch(() => { dwgReady = null; });
+  }
+  return dwgReady;
+}
+const DWG_LW = [0, 5, 9, 13, 15, 18, 20, 25, 30, 35, 40, 50, 53, 60, 70, 80, 90, 100, 106, 120, 140, 158, 200, 211];
+const DEG = 180 / Math.PI;
+function dwgToModel(db) {
+  const hiddenLayers = new Set();
+  const layers = {};
+  for (const L of (db.tables && db.tables.LAYER && db.tables.LAYER.entries) || []) {
+    layers[L.name] = { color: L.colorIndex };
+    if (L.off || L.frozen || L.colorIndex < 0) hiddenLayers.add(L.name);
+  }
+  let skipped = 0;
+  const conv = (e, out) => {
+    if (!e || e.isVisible === false || hiddenLayers.has(e.layer)) return;
+    const codes = [[8, e.layer || '0'], [62, e.colorIndex == null ? 256 : e.colorIndex]];
+    if (e.lineweight >= 0 && e.lineweight < DWG_LW.length && DWG_LW[e.lineweight] > 0) codes.push([370, DWG_LW[e.lineweight]]);
+    const P = (code, p) => { if (p) codes.push([code, p.x || 0], [code + 10, p.y || 0]); };
+    const ent = (type) => out.push({ type, codes });
+    switch (e.type) {
+      case 'LINE': P(10, e.startPoint); P(11, e.endPoint); ent('LINE'); break;
+      case 'CIRCLE': P(10, e.center); codes.push([40, e.radius]); ent('CIRCLE'); break;
+      case 'ARC': P(10, e.center); codes.push([40, e.radius], [50, e.startAngle * DEG], [51, e.endAngle * DEG]); ent('ARC'); break;
+      case 'ELLIPSE': P(10, e.center); P(11, e.majorAxisEndPoint); codes.push([40, e.axisRatio], [41, e.startAngle], [42, e.endAngle]); ent('ELLIPSE'); break;
+      case 'LWPOLYLINE': case 'POLYLINE2D': case 'POLYLINE3D': {
+        const closed = e.type === 'LWPOLYLINE' ? (e.flag & 0x200) || (e.flag & 1) : (e.flag & 1);
+        if (e.type !== 'LWPOLYLINE' && (e.flag & (16 | 64))) { skipped++; break; }  // meshes & polyface
+        codes.push([70, closed ? 1 : 0]);
+        for (const v of e.vertices || []) { if (v.flag & 16) continue; codes.push([10, v.x], [20, v.y], [42, v.bulge || 0]); }
+        ent('LWPOLYLINE');
+        break;
+      }
+      case 'SPLINE': {
+        codes.push([71, e.degree || 3], [70, e.flag || 0]);
+        for (const k of e.knots || []) codes.push([40, k]);
+        for (const w of e.weights || []) codes.push([41, w]);
+        for (const p of e.controlPoints || []) P(10, p);
+        for (const p of e.fitPoints || []) P(11, p);
+        ent('SPLINE');
+        break;
+      }
+      case 'TEXT': case 'ATTRIB': {
+        const t = e.type === 'ATTRIB' ? (e.text || {}) : e;
+        const str = e.type === 'ATTRIB' ? t.text : e.text;
+        if (!str || (e.type === 'ATTRIB' && (e.flags & 1))) break;
+        P(10, t.startPoint); P(11, t.endPoint);
+        codes.push([40, t.textHeight || 2.5], [1, str], [50, (t.rotation || 0) * DEG], [72, t.halign || 0], [73, t.valign || 0]);
+        ent('TEXT');
+        break;
+      }
+      case 'MTEXT': {
+        P(10, e.insertionPoint);
+        codes.push([40, e.textHeight || 2.5], [1, e.text || ''], [71, e.attachmentPoint || 1]);
+        if (e.direction && (e.direction.x || e.direction.y)) P(11, e.direction); else codes.push([50, (e.rotation || 0) * DEG]);
+        ent('MTEXT');
+        break;
+      }
+      case 'POINT': P(10, e.position); ent('POINT'); break;
+      case 'SOLID': case 'TRACE': case '3DFACE': P(10, e.corner1); P(11, e.corner2); P(12, e.corner3); P(13, e.corner4 || e.corner3); ent(e.type); break;
+      case 'INSERT': {
+        codes.push([2, e.name || '']); P(10, e.insertionPoint);
+        codes.push([41, e.xScale == null ? 1 : e.xScale], [42, e.yScale == null ? 1 : e.yScale], [50, (e.rotation || 0) * DEG],
+          [70, e.columnCount || 1], [71, e.rowCount || 1], [44, e.columnSpacing || 0], [45, e.rowSpacing || 0]);
+        ent('INSERT');
+        for (const a of e.attribs || []) conv(a, out);
+        break;
+      }
+      case 'DIMENSION': codes.push([2, e.name || '']); ent('DIMENSION'); break;
+      case 'HATCH': {
+        if (!e.solidFill) { skipped++; break; }
+        const paths = e.boundaryPaths || [];
+        out.push({
+          type: '_RAW', codes, filled: true,
+          make: (F) => {
+            const cp = new CompoundPath({ insert: false, fillRule: 'evenodd' });
+            for (const bp of paths) {
+              const pts = [];
+              if (bp.vertices) {
+                const vs = bp.vertices, n = vs.length;
+                for (let k = 0; k < n; k++) {
+                  const a = vs[k], b = vs[(k + 1) % n];
+                  pts.push([a.x, a.y]);
+                  if (a.bulge && (k < n - 1 || bp.isClosed !== false)) {
+                    // bulge = tan(θ/4); positive bulge sweeps counter-clockwise from a to b
+                    const th = 4 * Math.atan(a.bulge), dx = b.x - a.x, dy = b.y - a.y, ch = Math.hypot(dx, dy);
+                    if (ch > 0) {
+                      const d = (ch / 2) / Math.tan(th / 2);
+                      const cx = (a.x + b.x) / 2 - d * dy / ch, cy = (a.y + b.y) / 2 + d * dx / ch;
+                      const R = Math.hypot(a.x - cx, a.y - cy), a0 = Math.atan2(a.y - cy, a.x - cx);
+                      for (let s = 1; s < 16; s++) { const ang = a0 + th * s / 16; pts.push([cx + R * Math.cos(ang), cy + R * Math.sin(ang)]); }
+                    }
+                  }
+                }
+              } else {
+                for (const ed of bp.edges || []) {
+                  if (ed.start && ed.end && !ed.center) { pts.push([ed.start.x, ed.start.y], [ed.end.x, ed.end.y]); }
+                  else if (ed.center && ed.radius) {
+                    let a0 = ed.startAngle, a1 = ed.endAngle;
+                    const dir = ed.isCCW === false ? -1 : 1;
+                    if (dir < 0) { a0 = -a0; a1 = -a1; }
+                    while (dir > 0 ? a1 < a0 : a1 > a0) a1 += dir * Math.PI * 2;
+                    for (let s = 0; s <= 24; s++) { const ang = a0 + (a1 - a0) * s / 24; pts.push([ed.center.x + ed.radius * Math.cos(ang), ed.center.y + ed.radius * Math.sin(ang)]); }
+                  } else if (ed.controlPoints && ed.controlPoints.length) { for (const p of ed.controlPoints) pts.push([p.x, p.y]); }
+                  else if (ed.fitDatum && ed.fitDatum.length) { for (const p of ed.fitDatum) pts.push([p.x, p.y]); }
+                }
+              }
+              if (pts.length > 2) cp.addChild(new Path({ segments: pts.map((p) => F(p[0], p[1])), closed: true, insert: false }));
+            }
+            return cp.children.length ? cp : null;
+          },
+        });
+        break;
+      }
+      case 'XLINE': case 'RAY': break;   // infinite construction lines aren't drawable
+      default: skipped++;
+    }
+  };
+  const blocks = {};
+  let model = null;
+  for (const br of (db.tables && db.tables.BLOCK_RECORD && db.tables.BLOCK_RECORD.entries) || []) {
+    const nm = br.name || '';
+    if (/^\*model_space$/i.test(nm)) { model = br; continue; }
+    if (/^\*paper_space/i.test(nm)) continue;
+    const ents = [];
+    for (const e of br.entities || []) conv(e, ents);
+    blocks[nm] = { name: nm, base: [br.basePoint ? br.basePoint.x : 0, br.basePoint ? br.basePoint.y : 0], entities: ents };
+  }
+  const entities = [];
+  const src = model && model.entities && model.entities.length ? model.entities : db.entities || [];
+  const before = skipped;
+  for (const e of src) conv(e, entities);
+  return { model: { units: (db.header && db.header.INSUNITS) || 0, layers, blocks, entities }, skipped: skipped - before };
+}
+async function importDWG(buf, fileName, mode) {
+  toast('Loading the DWG reader (about 8 MB, first time only)…', 30000);
+  let eng;
+  try { eng = await ensureLibreDwg(); }
+  catch (err) { console.error(err); toast('The DWG reader couldn’t load here. Check your connection, or save the drawing as DXF and open that.', 6000); return; }
+  toast('Reading DWG…', 30000);
+  await new Promise((r) => setTimeout(r, 30));
+  let db, ptr;
+  try {
+    ptr = eng.lib.dwg_read_data(buf, eng.wrap.Dwg_File_Type.DWG);
+    if (ptr == null) throw new Error('unsupported or damaged file');
+    db = eng.lib.convert(ptr);
+  } catch (err) {
+    console.error(err);
+    toast('Couldn’t read that DWG (' + (err.message || 'unknown error') + '). Very old (pre-R13) or very new versions may not open — try saving as DXF.', 6500);
+    return;
+  } finally {
+    try { if (ptr != null) eng.lib.dwg_free(ptr); } catch (e) { /* already freed */ }
+  }
+  const { model, skipped } = dwgToModel(db);
+  if (!model.entities.length) { toast('No drawable model-space content found in that DWG.'); return; }
+  const { items, skipped: skipped2 } = buildDXFItems(model);
+  if (!items.length) { toast('Nothing in that DWG could be drawn.'); return; }
+  const g = new Group({ children: items, insert: false });
+  g.name = fileName || 'DWG';
+  const f = DXF_UNITS[model.units] || 1;
+  if (f !== 1) g.scale(f, new Point(0, 0));
+  if (mode === 'open') artLayer.removeChildren();
+  placeImported(g, null, fileName, mode);
+  const ratio = mode === 'open' ? fitCadToSheet(g) : null;
+  const sk = skipped + skipped2;
+  toast(`Imported ${items.length} object${items.length === 1 ? '' : 's'} from DWG`
+    + (ratio ? ` · scaled 1:${ratio} to fit an A3 sheet — Undo for real size` : '')
+    + (sk ? ` · ${sk} unsupported (pattern hatches, 3D solids, images, leaders) skipped` : ''), 6000);
 }
 
 /* ----- PDF / AI reader (via pdf.js, loaded on first use) ----- */
@@ -2526,7 +2738,7 @@ async function openFile(file, mode) {
   const name = file.name || 'file';
   const ext = (name.split('.').pop() || '').toLowerCase();
   try {
-    if (/^(png|jpe?g|gif|webp|bmp)$/.test(ext) || (/^image\//.test(file.type) && file.type !== 'image/svg+xml')) {
+    if (/^(png|jpe?g|gif|webp|bmp)$/.test(ext) || /^image\/(png|jpeg|gif|webp|bmp)$/.test(file.type)) {
       return importImage(await readFile(file, 'url'), name, mode);
     }
     const buf = await readFile(file, 'buf');
@@ -2536,7 +2748,8 @@ async function openFile(file, mode) {
       return importPDF(buf, name, mode);
     }
     if (ext === 'eps' || head.startsWith('%!PS')) return toast('EPS isn’t supported. Convert it to SVG or PDF first.', 4000);
-    if (ext === 'cdr' || ext === 'dwg') return toast(`.${ext} files can’t be read in the browser. Export SVG, PDF or DXF from your CAD app.`, 4500);
+    if (ext === 'dwg' || /^AC1\d{3}/.test(head)) return importDWG(buf, name, mode);
+    if (ext === 'cdr') return toast('CorelDRAW .cdr files can’t be read in the browser. Export SVG or PDF from CorelDRAW.', 4500);
     const text = new TextDecoder('utf-8').decode(buf);
     const trimmed = text.replace(/^﻿/, '').trimStart();
     if (ext === 'svg' || ext === 'svgz' || trimmed.startsWith('<')) {
@@ -2545,7 +2758,7 @@ async function openFile(file, mode) {
     }
     if (ext === 'json' || trimmed.startsWith('{')) return importProject(text, name);
     if (ext === 'dxf' || /^\s*0\s*\r?\n\s*SECTION/.test(trimmed)) return importDXFText(text, name, mode);
-    toast(`Vellum can’t open .${ext} files. Try SVG, DXF, PDF, AI (PDF-compatible), PNG or JPG.`, 4200);
+    toast(`Vellum can’t open .${ext} files. Try SVG, DXF, DWG, PDF, AI (PDF-compatible), PNG or JPG.`, 4200);
   } catch (err) {
     console.error(err);
     toast('Something went wrong reading that file: ' + err.message, 4200);
@@ -2689,7 +2902,7 @@ function boot() {
 boot();
 
 // test hooks (harmless in production)
-window.__vellum = { buildSVG, buildPDF, buildDXF, parseDXF, importDXFText, importSVGText, importPDF, openFile, artLayer, doc, setTool, setSelection, get selection() { return selection; }, commit, undo, redo };
+window.__vellum = { importDWG, buildSVG, buildPDF, buildDXF, parseDXF, importDXFText, importSVGText, importPDF, openFile, artLayer, doc, setTool, setSelection, get selection() { return selection; }, commit, undo, redo };
 })();
 </script>
 </body>
