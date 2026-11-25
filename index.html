@@ -2116,7 +2116,8 @@ function buildDXFItems(dxf) {
   const F = (x, y) => new Point(x, -y);            // flip Y: DXF is y-up, the canvas is y-down
   const rgbHex = (rgb) => '#' + rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
   let skipped = 0;
-  const colorFor = (e, ctx) => {
+  const colorFor = (e, ctx) => { const c = colorRaw(e, ctx); return c === '#ffffff' ? '#000000' : c; };
+  const colorRaw = (e, ctx) => {
     const tc = gv(e, 420);
     if (tc != null) { const n = parseInt(tc, 10); return rgbHex([(n >> 16) & 255, (n >> 8) & 255, n & 255]); }
     let aci = gv(e, 62) != null ? parseInt(gv(e, 62), 10) : 256;
@@ -2395,17 +2396,22 @@ function ensureLibreDwg() {
 }
 const DWG_LW = [0, 5, 9, 13, 15, 18, 20, 25, 30, 35, 40, 50, 53, 60, 70, 80, 90, 100, 106, 120, 140, 158, 200, 211];
 const DEG = 180 / Math.PI;
-function dwgToModel(db) {
+function dwgToModel(db, showAll) {
   const hiddenLayers = new Set();
   const layers = {};
-  for (const L of (db.tables && db.tables.LAYER && db.tables.LAYER.entries) || []) {
-    layers[L.name] = { color: L.colorIndex };
-    if (L.off || L.frozen || L.colorIndex < 0) hiddenLayers.add(L.name);
+  const layerList = (db.tables && db.tables.LAYER && db.tables.LAYER.entries) || [];
+  for (const L of layerList) {
+    const tc = L.colorIndex === 256 && Number.isFinite(L.color) && L.color !== 0xffffff ? L.color : null;
+    layers[L.name] = { color: L.colorIndex, trueColor: tc };
+    if (L.off === true || L.frozen === true) hiddenLayers.add(L.name);
   }
+  // Some files report every layer as off/frozen (missing flags); ignore the flags then.
+  if (showAll || (layerList.length && hiddenLayers.size >= layerList.length)) hiddenLayers.clear();
   let skipped = 0;
   const conv = (e, out) => {
-    if (!e || e.isVisible === false || hiddenLayers.has(e.layer)) return;
+    if (!e || (!showAll && e.isVisible === false) || hiddenLayers.has(e.layer)) return;
     const codes = [[8, e.layer || '0'], [62, e.colorIndex == null ? 256 : e.colorIndex]];
+    if (Number.isFinite(e.color) && e.color >= 0) codes.push([420, e.color]);
     if (e.lineweight >= 0 && e.lineweight < DWG_LW.length && DWG_LW[e.lineweight] > 0) codes.push([370, DWG_LW[e.lineweight]]);
     const P = (code, p) => { if (p) codes.push([code, p.x || 0], [code + 10, p.y || 0]); };
     const ent = (type) => out.push({ type, codes });
@@ -2517,11 +2523,40 @@ function dwgToModel(db) {
     for (const e of br.entities || []) conv(e, ents);
     blocks[nm] = { name: nm, base: [br.basePoint ? br.basePoint.x : 0, br.basePoint ? br.basePoint.y : 0], entities: ents };
   }
-  const entities = [];
-  const src = model && model.entities && model.entities.length ? model.entities : db.entities || [];
   const before = skipped;
-  for (const e of src) conv(e, entities);
-  return { model: { units: (db.header && db.header.INSUNITS) || 0, layers, blocks, entities }, skipped: skipped - before };
+  let entities = [];
+  const tryList = (list) => { entities = []; for (const e of list || []) conv(e, entities); return entities.length > 0; };
+  const records = (db.tables && db.tables.BLOCK_RECORD && db.tables.BLOCK_RECORD.entries) || [];
+  const paper = records.filter((r) => /^\*paper_space/i.test(r.name || '')).flatMap((r) => r.entities || []);
+  let source = 'model';
+  if (!tryList(model && model.entities)) {
+    source = 'all';
+    if (!tryList(db.entities)) {
+      source = 'paper';
+      if (!tryList(paper)) {
+        // last resort: show every block definition laid out where it was drawn
+        source = 'blocks';
+        const inserts = Object.keys(blocks).filter((n) => blocks[n].entities.length && !/^\*/.test(n))
+          .map((n) => ({ type: 'INSERT', codes: [[2, n], [10, 0], [20, 0]] }));
+        entities = inserts;
+      }
+    }
+  }
+  return { model: { units: (db.header && db.header.INSUNITS) || 0, layers, blocks, entities }, skipped: skipped - before, source };
+}
+const DWG_VERSIONS = { AC1009: 'R11/R12', AC1012: 'R13', AC1014: 'R14', AC1015: 'AutoCAD 2000', AC1018: 'AutoCAD 2004', AC1021: 'AutoCAD 2007', AC1024: 'AutoCAD 2010', AC1027: 'AutoCAD 2013', AC1032: 'AutoCAD 2018+' };
+function dwgReport(db, ver) {
+  const count = (list) => { const c = {}; for (const e of list || []) c[e.type] = (c[e.type] || 0) + 1; return c; };
+  const fmtC = (c) => Object.entries(c).map(([k, v]) => `${k} ×${v}`).join(', ') || 'none';
+  const recs = (db.tables && db.tables.BLOCK_RECORD && db.tables.BLOCK_RECORD.entries) || [];
+  const layers = (db.tables && db.tables.LAYER && db.tables.LAYER.entries) || [];
+  const h = db.header || {};
+  return [
+    `Format: ${ver ? ver + ' (' + (DWG_VERSIONS[ver] || 'unrecognised') + ')' : 'unknown'} · units code ${h.INSUNITS ?? '?'}`,
+    `All entities: ${fmtC(count(db.entities))}`,
+    ...recs.slice(0, 30).map((r) => `Block "${r.name}": ${fmtC(count(r.entities))}`),
+    `Layers: ${layers.length} (${layers.filter((l) => l.off).length} off, ${layers.filter((l) => l.frozen).length} frozen)`,
+  ].join('\n');
 }
 async function importDWG(buf, fileName, mode) {
   toast('Loading the DWG reader (about 8 MB, first time only)…', 30000);
@@ -2542,10 +2577,20 @@ async function importDWG(buf, fileName, mode) {
   } finally {
     try { if (ptr != null) eng.lib.dwg_free(ptr); } catch (e) { /* already freed */ }
   }
-  const { model, skipped } = dwgToModel(db);
-  if (!model.entities.length) { toast('No drawable model-space content found in that DWG.'); return; }
-  const { items, skipped: skipped2 } = buildDXFItems(model);
-  if (!items.length) { toast('Nothing in that DWG could be drawn.'); return; }
+  let conv = dwgToModel(db, false);
+  let built = conv.model.entities.length ? buildDXFItems(conv.model) : { items: [], skipped: 0 };
+  if (!built.items.length) {            // retry with hidden layers and invisible entities included
+    conv = dwgToModel(db, true);
+    built = conv.model.entities.length ? buildDXFItems(conv.model) : { items: [], skipped: 0 };
+  }
+  const { model, skipped } = conv;
+  const { items, skipped: skipped2 } = built;
+  if (!items.length) {
+    $('#toast').hidden = true;
+    const ta = document.createElement('textarea'); ta.readOnly = true; ta.value = dwgReport(db, String.fromCharCode(...new Uint8Array(buf, 0, 6)));
+    dialog('Nothing drawable in this DWG', 'Vellum read the file but found no 2D shapes it can draw. This is what the file contains. Saving it as DXF or PDF from your CAD or laser software usually works.', ta, ta.value);
+    return;
+  }
   const g = new Group({ children: items, insert: false });
   g.name = fileName || 'DWG';
   const f = DXF_UNITS[model.units] || 1;
@@ -2555,6 +2600,7 @@ async function importDWG(buf, fileName, mode) {
   const ratio = mode === 'open' ? fitCadToSheet(g) : null;
   const sk = skipped + skipped2;
   toast(`Imported ${items.length} object${items.length === 1 ? '' : 's'} from DWG`
+    + (conv.source === 'paper' ? ' (from the paper-space layout)' : conv.source === 'blocks' ? ' (from block definitions)' : '')
     + (ratio ? ` · scaled 1:${ratio} to fit an A3 sheet — Undo for real size` : '')
     + (sk ? ` · ${sk} unsupported (pattern hatches, 3D solids, images, leaders) skipped` : ''), 6000);
 }
@@ -2902,7 +2948,7 @@ function boot() {
 boot();
 
 // test hooks (harmless in production)
-window.__vellum = { importDWG, buildSVG, buildPDF, buildDXF, parseDXF, importDXFText, importSVGText, importPDF, openFile, artLayer, doc, setTool, setSelection, get selection() { return selection; }, commit, undo, redo };
+window.__vellum = { importDWG, dwgToModel, dwgReport, buildDXFItems, ensureLibreDwg, buildSVG, buildPDF, buildDXF, parseDXF, importDXFText, importSVGText, importPDF, openFile, artLayer, doc, setTool, setSelection, get selection() { return selection; }, commit, undo, redo };
 })();
 </script>
 </body>
