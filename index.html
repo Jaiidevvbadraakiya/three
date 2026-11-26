@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Vellum Vector Studio</title>
+<title>Jaydev’s Studio</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -191,7 +191,7 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
 <body>
 <div class="app">
   <header class="topbar" aria-label="File and view">
-    <div class="brand"><b>Vellum</b><span>vector</span></div>
+    <div class="brand"><b>Jaydev’s Studio</b><span>vector</span></div>
     <button class="btn" id="btnNew" title="New drawing (undo brings it back)">New</button>
     <button class="btn" id="btnOpen" title="Open SVG, DXF, DWG, PDF, image or project — replaces the drawing">Open…</button>
     <button class="btn" id="btnPlace" title="Add a file into the current drawing">Place…</button>
@@ -388,7 +388,7 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
           <label class="check"><input type="checkbox" id="snap"> Snap to grid</label>
         </div>
         <button class="mini" id="btnFitArtboard">Fit artboard to artwork</button>
-        <p class="note">Opens SVG, DXF, DWG, PDF/AI, PNG, JPG and Vellum projects. Exports SVG, PDF and DXF at real size.</p>
+        <p class="note">Opens SVG, DXF, DWG, PDF/AI, PNG, JPG and Studio project files. Exports SVG, PDF and DXF at real size.</p>
       </section>
     </aside>
   </div>
@@ -1728,14 +1728,14 @@ function buildSVG() {
   root.setAttribute('viewBox', `0 0 ${fmt(doc.w, 4)} ${fmt(doc.h, 4)}`);
   if (node.nodeName.toLowerCase() === 'svg') { while (node.firstChild) root.appendChild(node.firstChild); }
   else { node.removeAttribute('id'); root.appendChild(node); }
-  return '<?xml version="1.0" encoding="UTF-8"?>\n<!-- Created with Vellum. Units: 1 user unit = 1 mm -->\n' + new XMLSerializer().serializeToString(root);
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<!-- Created with Jaydev’s Studio. Units: 1 user unit = 1 mm -->\n' + new XMLSerializer().serializeToString(root);
 }
 
 /* ---------- PDF ---------- */
 function buildPDF() {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'mm', format: [doc.w, doc.h], orientation: doc.w > doc.h ? 'landscape' : 'portrait', compress: true });
-  pdf.setProperties({ title: doc.name, creator: 'Vellum' });
+  pdf.setProperties({ title: doc.name, creator: 'Jaydev’s Studio' });
   const trace = (g) => {
     const subs = g instanceof CompoundPath ? g.children : [g];
     let any = false;
@@ -1997,8 +1997,8 @@ function showDXFText(text) {
 $('#btnSaveProject').addEventListener('click', async () => {
   if (pen) finishPen();
   await dlReady;
-  const data = JSON.stringify({ app: 'vellum', version: 1, doc: { ...doc }, art: artLayer.exportJSON({ asString: false }) });
-  saveFile(doc.name + '.vellum.json', data, 'application/json');
+  const data = JSON.stringify({ app: 'jaydev-studio', version: 1, doc: { ...doc }, art: artLayer.exportJSON({ asString: false }) });
+  saveFile(doc.name + '.studio.json', data, 'application/json');
 });
 
 /* =========================================================================
@@ -2007,7 +2007,7 @@ $('#btnSaveProject').addEventListener('click', async () => {
 function placeImported(item, sizeMM, fileName, mode) {
   artLayer.addChild(item);
   if (mode === 'open') {
-    if (fileName) doc.name = fileName.replace(/\.[^.]+$/, '').replace(/\.vellum$/, '') || 'drawing';
+    if (fileName) doc.name = fileName.replace(/\.[^.]+$/, '').replace(/\.(vellum|studio)$/, '') || 'drawing';
     const b = item.strokeBounds;
     if (sizeMM && sizeMM[0] > 0 && sizeMM[1] > 0 && b.width > 0 && b.intersects(new Rectangle(0, 0, sizeMM[0], sizeMM[1]).expand(1))) {
       doc.w = +sizeMM[0].toFixed(3); doc.h = +sizeMM[1].toFixed(3);
@@ -2608,7 +2608,7 @@ async function importDWG(buf, fileName, mode) {
   if (!items.length) {
     $('#toast').hidden = true;
     const ta = document.createElement('textarea'); ta.readOnly = true; ta.value = dwgReport(db, String.fromCharCode(...new Uint8Array(buf, 0, 6)));
-    dialog('Nothing drawable in this DWG', 'Vellum read the file but found no 2D shapes it can draw. This is what the file contains. Saving it as DXF or PDF from your CAD or laser software usually works.', ta, ta.value);
+    dialog('Nothing drawable in this DWG', 'Jaydev’s Studio read the file but found no 2D shapes it can draw. This is what the file contains. Saving it as DXF or PDF from your CAD or laser software usually works.', ta, ta.value);
     return;
   }
   const g = new Group({ children: items, insert: false });
@@ -2783,7 +2783,7 @@ function importImage(dataURL, fileName, mode) {
 function importProject(text, fileName) {
   let o;
   try { o = JSON.parse(text); } catch (e) { toast('That file isn’t valid JSON.'); return; }
-  if (!o || o.app !== 'vellum' || !o.art) { toast('That JSON file isn’t a Vellum project.'); return; }
+  if (!o || !/^(vellum|jaydev-studio)$/.test(o.app) || !o.art) { toast('That JSON file isn’t a Jaydev’s Studio project.'); return; }
   Object.assign(doc, o.doc || {});
   artLayer.removeChildren();
   artLayer.importJSON(o.art);
@@ -2824,7 +2824,7 @@ async function openFile(file, mode) {
     }
     if (ext === 'json' || trimmed.startsWith('{')) return importProject(text, name);
     if (ext === 'dxf' || /^\s*0\s*\r?\n\s*SECTION/.test(trimmed)) return importDXFText(text, name, mode);
-    toast(`Vellum can’t open .${ext} files. Try SVG, DXF, DWG, PDF, AI (PDF-compatible), PNG or JPG.`, 4200);
+    toast(`Jaydev’s Studio can’t open .${ext} files. Try SVG, DXF, DWG, PDF, AI (PDF-compatible), PNG or JPG.`, 4200);
   } catch (err) {
     console.error(err);
     toast('Something went wrong reading that file: ' + err.message, 4200);
@@ -2931,7 +2931,7 @@ function buildSample() {
   const body = tag.subtract(hole, { insert: false });
   body.fillColor = '#cfe3f1'; body.strokeColor = '#1d2630'; body.strokeWidth = 0.5; body.strokeJoin = 'round';
   artLayer.addChild(body);
-  new PointText({ point: [46, 50], content: 'VELLUM', fontSize: 15, fontFamily: 'Helvetica, Arial, sans-serif', fontWeight: 'bold', fillColor: '#1d2630', parent: artLayer });
+  new PointText({ point: [46, 50], content: 'JAYDEV', fontSize: 15, fontFamily: 'Helvetica, Arial, sans-serif', fontWeight: 'bold', fillColor: '#1d2630', parent: artLayer });
   new PointText({ point: [46, 62], content: 'Sample drawing — tap anything to edit it', fontSize: 4.2, fontFamily: 'Helvetica, Arial, sans-serif', fillColor: '#4a5866', parent: artLayer });
   const star = new Path.Star({ center: [172, 51], points: 5, radius1: 22, radius2: 10, parent: artLayer });
   star.fillColor = '#f2c14e'; star.strokeColor = '#1d2630'; star.strokeWidth = 0.5; star.strokeJoin = 'round';

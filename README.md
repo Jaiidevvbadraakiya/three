@@ -1,10 +1,10 @@
-# Vellum — vector editor in the browser
+# Jaydev’s Studio — vector editor in the browser
 
 A single-file web app (`index.html`) for drawing, editing, importing and exporting vector files. No build step and no server: open `index.html` in a browser, or host it on any static host (e.g. GitHub Pages).
 
 ## What it does
 
-**Open / place:** SVG, DXF (ASCII, R12–2018), DWG (R14–2018, via LibreDWG), PDF and Illustrator `.ai` files saved with PDF compatibility (first page), PNG/JPG/WebP images, and Vellum project files (`.vellum.json`). Drag and drop or paste SVG code also work.
+**Open / place:** SVG, DXF (ASCII, R12–2018), DWG (R14–2018, via LibreDWG), PDF and Illustrator `.ai` files saved with PDF compatibility (first page), PNG/JPG/WebP images, and Studio project files (`.studio.json`; older `.vellum.json` files open too). Drag and drop or paste SVG code also work.
 
 **Draw & edit:** select/move/scale/rotate, edit points and Bézier handles, pen, pencil, line, rectangle (with corner radius), ellipse, polygon, star, text. Fill, stroke, width, dashes, opacity. Group/ungroup, arrange, align, flip, boolean ops (unite, minus, overlap, exclude), undo/redo, grid and snapping, artboard presets (A-series, US sizes, laser bed), units (mm, cm, in, pt, px). Works with mouse, keyboard shortcuts, and touch (pinch to zoom).
 
