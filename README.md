@@ -21,7 +21,7 @@ A single-file web app for drawing, editing, importing and exporting vector files
 - **PDF**: true vector output at artboard size (jsPDF). Text uses the standard Helvetica/Times/Courier fonts.
 - **DXF**: AutoCAD R12 ASCII with LINE/POLYLINE/TEXT entities. Curves are flattened to 0.02 mm, Y axis flipped to CAD convention, units written to `$INSUNITS` (mm, or cm/in if selected).
 
-**Shop tools** (button in the top bar): fractions ↔ decimals ↔ mm, sheet layout (parts per sheet, sheets needed, with diagram), cut time, job quote, panel maker (square, rounded or chamfered corners, drawn into the editor), measure selection, kerf compensation and an acrylic thickness chart. Values are remembered; inputs accept `41 5/16`, `41.303`, `1049mm`.
+**Shop tools** (button in the top bar): job time (a parts library with per-operation times — laser cut, etch, chamfer, finishing, film, packing, or your own — that builds a job, splits laser and bench time, estimates working days and learns from logged real runs; export/import to share), fractions ↔ decimals ↔ mm, sheet layout (parts per sheet, sheets needed, with diagram), cut time, job quote, panel maker (square, rounded or chamfered corners, drawn into the editor), measure selection, kerf compensation and an acrylic thickness chart. Values are remembered; inputs accept `41 5/16`, `41.303`, `1049mm`.
 
 Your drawing autosaves in the browser. Use **Save project** to keep an editable copy.
 

@@ -205,7 +205,8 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
 .tf-row input.bad { border-color: var(--danger); }
 .tf-row input[type="checkbox"] { width: 18px; height: 18px; justify-self: start; padding: 0; }
 .tf-suffix { font: 12px var(--font-mono); color: var(--muted); }
-.tf-hint { grid-column: 2 / 4; color: var(--muted); font-size: 12px; margin: 0; }
+.tf-hint { color: var(--muted); font-size: 12px; margin: 0; }
+.tf-row .tf-hint { grid-column: 2 / 4; }
 .tf-results { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; align-items: baseline; }
 .tf-results span { color: var(--muted); font-size: 13px; }
 .tf-results b { font: 500 14px var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -222,6 +223,52 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
 .tf-table th { font: 600 11px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .tf-table td:first-child { font-weight: 600; }
 .tf-table td:not(:first-child) { font-family: var(--font-mono); }
+/* Job time tool */
+.jt-card { width: 100%; display: grid; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.jt-card:last-of-type { border-bottom: 0; }
+.jt-line { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.jt-line-head { display: grid; grid-template-columns: minmax(0, 1fr) auto 80px auto auto; gap: 8px; align-items: center; }
+.jt-line-head select, .jt-qty, .jt-editor input:not([type="checkbox"]), .jt-custom-row select { height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--chrome); padding: 0 10px; min-width: 0; width: 100%; }
+.jt-qty, .jt-num { font: 14px var(--font-mono); font-variant-numeric: tabular-nums; }
+.jt-x { color: var(--muted); }
+.jt-remove { width: 30px; height: 30px; }
+.jt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.jt-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12.5px; cursor: pointer; background: var(--chrome); }
+.jt-chip.on { border-color: var(--accent); background: var(--accent-soft); }
+.jt-chip small { color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+.jt-chip input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
+.jt-line-total { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.jt-line-total b { font: 600 16px var(--font-mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.jt-parts { display: grid; gap: 6px; }
+.jt-part { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.jt-part.open { border-color: var(--accent); }
+.jt-part-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; }
+.jt-part-head > div { display: grid; gap: 2px; min-width: 0; }
+.jt-part-head b { font-size: 14px; overflow-wrap: anywhere; }
+.jt-part-head span { font-size: 12px; color: var(--muted); }
+.jt-editor { display: grid; gap: 10px; padding: 4px 12px 12px; }
+.jt-ops { display: grid; grid-template-columns: auto minmax(120px, 1.2fr) 86px 86px minmax(180px, 2fr); gap: 8px 10px; align-items: center; overflow-x: auto; }
+.jt-th { font: 600 10.5px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.jt-ops input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
+.jt-opname { display: grid; }
+.jt-opname b { font-size: 13px; font-weight: 500; }
+.jt-opname small { font-size: 11px; color: var(--muted); }
+.jt-runs { display: grid; gap: 4px; }
+.jt-runs small { font-size: 11.5px; color: var(--muted); }
+.jt-log { display: flex; gap: 6px; flex-wrap: wrap; }
+.jt-log input { width: 72px !important; flex: 1 1 64px; }
+.jt-log .btn { height: 34px; }
+.jt-editor input.bad { border-color: var(--danger); }
+.jt-custom { display: grid; gap: 6px; }
+.jt-custom-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 8px; }
+@media (max-width: 760px) {
+  .jt-line-head { grid-template-columns: minmax(0, 1fr) 64px auto auto; }
+  .jt-line-head .jt-x { display: none; }
+  .jt-ops { grid-template-columns: auto minmax(110px, 1fr) 72px 72px; }
+  .jt-ops .jt-th:last-child { display: none; }
+  .jt-runs { grid-column: 2 / 5; }
+}
+
 @media (max-width: 760px) {
   .tv-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .tv-nav { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
@@ -229,7 +276,7 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
   .tv-item span { display: none; }
   .tv-main { padding: 14px; }
   .tf-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; }
-  .tf-hint { grid-column: 1 / 4; }
+  .tf-row .tf-hint { grid-column: 1 / 4; }
   .tv-sub { display: none; }
 }
 
@@ -3344,6 +3391,7 @@ window.studio = {
   get units() { return doc.units; },
   setUnits,
   toast,
+  saveFile,
   selectionStats() {
     let length = 0, pierces = 0, area = 0, count = 0;
     eachLeaf(selection, (it) => {
@@ -3658,6 +3706,303 @@ TOOLS.push({
       ]));
     }
     update();
+  },
+});
+
+// 3b. Job time — parts library with per-operation times, a job built from it, and logged real runs
+const OPS_DEFAULT = [
+  { id: 'cut', name: 'Laser cut', station: 'Laser' },
+  { id: 'etch', name: 'Laser etch / engrave', station: 'Laser' },
+  { id: 'chamfer', name: 'Chamfer edge', station: 'Bench' },
+  { id: 'finish', name: 'Edge finishing / polish', station: 'Bench' },
+  { id: 'film', name: 'Film / masking', station: 'Bench' },
+  { id: 'clean', name: 'Peel, clean & pack', station: 'Bench' },
+];
+// minutes from "2:30" (m:ss), "1:02:00" (h:mm:ss), "90s", "1.5h" or plain minutes
+function parseMinutes(str) {
+  const s = String(str == null ? '' : str).trim().toLowerCase();
+  if (!s) return NaN;
+  let m;
+  if ((m = s.match(/^(\d+):(\d{1,2}):(\d{1,2})$/))) return +m[1] * 60 + +m[2] + +m[3] / 60;
+  if ((m = s.match(/^(\d+):(\d{1,2})$/))) return +m[1] + +m[2] / 60;
+  if ((m = s.match(/^(\d*\.?\d+)\s*(s|sec|secs|seconds?)$/))) return +m[1] / 60;
+  if ((m = s.match(/^(\d*\.?\d+)\s*(h|hr|hrs|hours?)$/))) return +m[1] * 60;
+  if ((m = s.match(/^(\d*\.?\d+)\s*(m|min|mins|minutes?)?$/))) return +m[1];
+  return NaN;
+}
+const fmtMin = (min) => (Number.isFinite(min) ? hms(min * 60) : '—');
+const minText = (min) => { if (!Number.isFinite(min)) return ''; const t = Math.round(min * 60); return t % 60 ? `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` : String(t / 60); };
+function jobData() {
+  const d = (store.jobtime = store.jobtime || {});
+  if (!d.ops) d.ops = OPS_DEFAULT.map((o) => ({ ...o }));
+  if (!d.parts) {
+    d.parts = [{
+      id: 'p' + Date.now(), name: 'Example — logo panel, etched', notes: 'Example times: replace with your own or log real runs',
+      ops: {
+        cut: { on: true, min: 2.5, setup: 5, runs: [] }, etch: { on: true, min: 6, setup: 3, runs: [] },
+        chamfer: { on: false, min: 4, setup: 0, runs: [] }, finish: { on: false, min: 3, setup: 0, runs: [] },
+        film: { on: true, min: 2, setup: 0, runs: [] }, clean: { on: true, min: 1.5, setup: 0, runs: [] },
+      },
+    }];
+  }
+  if (!d.job) d.job = { lines: [{ partId: d.parts[0].id, qty: 12, ops: { chamfer: true, finish: true } }], hoursPerDay: 7.5 };
+  return d;
+}
+// minutes per piece: the average of logged runs when there are any, else the entered estimate
+function opMinutes(o) {
+  const runs = (o && o.runs) || [];
+  const q = runs.reduce((a, r) => a + r.qty, 0);
+  if (q > 0) return { min: runs.reduce((a, r) => a + r.minutes, 0) / q, from: `avg of ${runs.length} run${runs.length === 1 ? '' : 's'}` };
+  return { min: o && Number.isFinite(o.min) ? o.min : 0, from: 'estimate' };
+}
+TOOLS.push({
+  id: 'jobtime', name: 'Job time', desc: 'Build a job from saved parts and their operations — cut, etch, chamfer, finish — and get laser and bench time.',
+  render(box) {
+    const d = jobData();
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    const input = (val, cls, aria, onChange, type) => {
+      const i = el('input', cls); i.type = type || 'text'; i.value = val; i.setAttribute('aria-label', aria); i.autocomplete = 'off';
+      i.addEventListener(type === 'checkbox' ? 'change' : 'input', () => onChange(i)); return i;
+    };
+    let editing = null;
+    const partById = (id) => d.parts.find((p) => p.id === id);
+    const opById = (id) => d.ops.find((o) => o.id === id);
+    const redraw = () => { save(); box.textContent = ''; build(); };
+
+    function lineTimes(line) {
+      const p = partById(line.partId); if (!p) return null;
+      const qty = Math.max(0, Math.round(line.qty || 0));
+      const rows = [];
+      for (const op of d.ops) {
+        const po = p.ops[op.id]; if (!po) continue;
+        const used = line.ops && op.id in line.ops ? line.ops[op.id] : po.on;
+        if (!used) continue;
+        const { min, from } = opMinutes(po);
+        rows.push({ op, per: min, setup: po.setup || 0, total: min * qty + (po.setup || 0), from });
+      }
+      return { p, qty, rows, per: rows.reduce((a, r) => a + r.per, 0), total: rows.reduce((a, r) => a + r.total, 0) };
+    }
+
+    function build() {
+      // ---- the job ----
+      const jobCard = el('section', 'jt-card');
+      jobCard.appendChild(el('h4', 'tf-sec', 'This job'));
+      const totals = { Laser: 0, Bench: 0 };
+      const summary = [];
+      d.job.lines.forEach((line, li) => {
+        const row = el('div', 'jt-line');
+        const sel = el('select'); sel.setAttribute('aria-label', 'Part');
+        for (const p of d.parts) { const o = el('option', null, p.name); o.value = p.id; sel.appendChild(o); }
+        sel.value = line.partId;
+        sel.addEventListener('change', () => { line.partId = sel.value; line.ops = {}; redraw(); });
+        const qty = input(line.qty, 'jt-qty', 'Quantity', (i) => { line.qty = Math.max(0, parseInt(i.value, 10) || 0); save(); refreshTotals(); });
+        qty.inputMode = 'numeric';
+        const rm = el('button', 'btn icon jt-remove', '×'); rm.type = 'button'; rm.title = 'Remove from job'; rm.setAttribute('aria-label', 'Remove from job');
+        rm.addEventListener('click', () => { d.job.lines.splice(li, 1); redraw(); });
+        const head = el('div', 'jt-line-head'); head.append(sel, el('span', 'jt-x', '×'), qty, el('span', 'tf-suffix', 'pcs'), rm);
+        row.appendChild(head);
+        const p = partById(line.partId);
+        const chips = el('div', 'jt-chips');
+        if (p) for (const op of d.ops) {
+          const po = p.ops[op.id]; if (!po) continue;
+          const on = line.ops && op.id in line.ops ? line.ops[op.id] : po.on;
+          const lab = el('label', 'jt-chip' + (on ? ' on' : ''));
+          const cb = input('', null, op.name, (i) => { line.ops = line.ops || {}; line.ops[op.id] = i.checked; redraw(); }, 'checkbox');
+          cb.checked = on;
+          lab.append(cb, el('span', null, op.name), el('small', null, `${fmtMin(opMinutes(po).min)}/pc`));
+          chips.appendChild(lab);
+        }
+        row.appendChild(chips);
+        const out = el('div', 'jt-line-total'); row.appendChild(out);
+        row._out = out; row._line = line;
+        jobCard.appendChild(row);
+      });
+      const addRow = el('div', 'tf-actions');
+      addRow.appendChild(button('Add a part to the job', () => { d.job.lines.push({ partId: d.parts[0] ? d.parts[0].id : null, qty: 1, ops: {} }); redraw(); }));
+      jobCard.appendChild(addRow);
+      const hpd = el('label', 'tf-row');
+      hpd.append(el('span', 'tf-label', 'Working hours per day'), input(d.job.hoursPerDay, null, 'Working hours per day', (i) => { d.job.hoursPerDay = num(i.value); save(); refreshTotals(); }), el('span', 'tf-suffix', 'h'));
+      jobCard.appendChild(hpd);
+      const resBox = el('div'); jobCard.appendChild(resBox);
+      const copyRow = el('div', 'tf-actions');
+      copyRow.appendChild(button('Copy summary', () => {
+        const text = summary.join('\n');
+        const done = () => S.toast('Job summary copied — paste it into your schedule');
+        try { navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text)); } catch (e) { fallbackCopy(text); }
+      }));
+      jobCard.appendChild(copyRow);
+      box.appendChild(jobCard);
+
+      function refreshTotals() {
+        totals.Laser = 0; totals.Bench = 0; summary.length = 0;
+        jobCard.querySelectorAll('.jt-line').forEach((row) => {
+          const t = lineTimes(row._line);
+          row._out.textContent = '';
+          if (!t) { row._out.textContent = 'Pick a part'; return; }
+          for (const r of t.rows) totals[r.op.station] = (totals[r.op.station] || 0) + r.total;
+          const b = el('b', null, fmtMin(t.total)); const s = el('span', null, `${fmtMin(t.per)} per piece` + (t.rows.some((r) => r.setup) ? ' + setup' : ''));
+          row._out.append(s, b);
+          summary.push(`${t.p.name} × ${t.qty}: ${fmtMin(t.total)} (` + t.rows.map((r) => `${r.op.name} ${fmtMin(r.total)}`).join(', ') + ')');
+        });
+        const all = totals.Laser + totals.Bench;
+        const days = d.job.hoursPerDay > 0 ? all / 60 / d.job.hoursPerDay : NaN;
+        summary.push(`Laser ${fmtMin(totals.Laser)} · Bench ${fmtMin(totals.Bench)} · Total ${fmtMin(all)}` + (Number.isFinite(days) ? ` · about ${days.toFixed(1)} working days` : ''));
+        resBox.textContent = '';
+        resBox.appendChild(results([
+          ['Laser time', fmtMin(totals.Laser), true], ['Bench time', fmtMin(totals.Bench), true], ['Total', fmtMin(all), true],
+          ['Working days', Number.isFinite(days) ? `${days.toFixed(1)} at ${d.job.hoursPerDay} h/day` : '—'],
+        ]));
+      }
+      refreshTotals();
+
+      // ---- parts library ----
+      const lib = el('section', 'jt-card');
+      lib.appendChild(el('h4', 'tf-sec', 'Parts library'));
+      const list = el('div', 'jt-parts');
+      for (const p of d.parts) {
+        const item = el('div', 'jt-part' + (editing === p.id ? ' open' : ''));
+        const head = el('div', 'jt-part-head');
+        const nm = el('b', null, p.name);
+        const ops = d.ops.filter((o) => p.ops[o.id] && p.ops[o.id].on).map((o) => o.name).join(' · ') || 'No default operations';
+        const info = el('span', null, ops);
+        const t = el('div'); t.append(nm, info);
+        head.append(t, button(editing === p.id ? 'Done' : 'Edit', () => { editing = editing === p.id ? null : p.id; redraw(); }));
+        item.appendChild(head);
+        if (editing === p.id) item.appendChild(editor(p));
+        list.appendChild(item);
+      }
+      lib.appendChild(list);
+      const libActions = el('div', 'tf-actions');
+      libActions.append(
+        button('New part', () => {
+          const p = { id: 'p' + Date.now(), name: 'New part', notes: '', ops: {} };
+          for (const o of d.ops) p.ops[o.id] = { on: o.id === 'cut', min: 0, setup: 0, runs: [] };
+          d.parts.push(p); editing = p.id; redraw();
+        }, true),
+        button('Export library', () => {
+          const data = JSON.stringify({ app: 'jaydev-studio-parts', version: 1, ops: d.ops, parts: d.parts }, null, 1);
+          S.saveFile('shop-parts-library.json', data, 'application/json');
+        }),
+        button('Import library', () => importInput.click()),
+      );
+      lib.appendChild(libActions);
+      lib.appendChild(el('p', 'tf-hint', 'Times are saved in this browser on this computer. Export the library to back it up or share it with other PCs; importing adds new parts and updates ones with the same name.'));
+      box.appendChild(lib);
+    }
+
+    function editor(p) {
+      const ed = el('div', 'jt-editor');
+      const nameRow = el('label', 'tf-row');
+      nameRow.append(el('span', 'tf-label', 'Part name'), input(p.name, null, 'Part name', (i) => { p.name = i.value.trim() || 'Unnamed part'; save(); }), el('span'));
+      ed.appendChild(nameRow);
+      const notesRow = el('label', 'tf-row');
+      notesRow.append(el('span', 'tf-label', 'Notes'), input(p.notes || '', null, 'Notes', (i) => { p.notes = i.value; save(); }), el('span'));
+      ed.appendChild(notesRow);
+      const table = el('div', 'jt-ops');
+      for (const h of ['Default', 'Operation', 'Min / piece', 'Setup min', 'Real runs']) table.appendChild(el('span', 'jt-th', h));
+      for (const op of d.ops) {
+        const po = (p.ops[op.id] = p.ops[op.id] || { on: false, min: 0, setup: 0, runs: [] });
+        const on = input('', null, `Use ${op.name} by default`, (i) => { po.on = i.checked; save(); }, 'checkbox'); on.checked = !!po.on;
+        const name = el('span', 'jt-opname'); name.append(el('b', null, op.name), el('small', null, op.station));
+        const min = input(minText(po.min), 'jt-num', `${op.name} minutes per piece`, (i) => { const v = parseMinutes(i.value); i.classList.toggle('bad', i.value.trim() !== '' && !Number.isFinite(v)); po.min = Number.isFinite(v) ? v : 0; save(); });
+        min.placeholder = 'm:ss';
+        const setup = input(minText(po.setup), 'jt-num', `${op.name} setup minutes`, (i) => { const v = parseMinutes(i.value); i.classList.toggle('bad', i.value.trim() !== '' && !Number.isFinite(v)); po.setup = Number.isFinite(v) ? v : 0; save(); });
+        const runs = el('div', 'jt-runs');
+        const avg = opMinutes(po);
+        runs.appendChild(el('small', null, po.runs && po.runs.length ? `${fmtMin(avg.min)}/pc, ${avg.from}` : 'No runs logged'));
+        const rq = input('', 'jt-num', `${op.name}: pieces in the run`, () => {}); rq.placeholder = 'pcs'; rq.inputMode = 'numeric';
+        const rt = input('', 'jt-num', `${op.name}: total time for the run`, () => {}); rt.placeholder = 'total time';
+        const add = el('button', 'btn', 'Log run'); add.type = 'button';
+        add.addEventListener('click', () => {
+          const q = parseInt(rq.value, 10), t = parseMinutes(rt.value);
+          if (!(q > 0) || !(t > 0)) { S.toast('Enter how many pieces and the total time, e.g. 12 pcs and 1:15:00'); return; }
+          po.runs = po.runs || []; po.runs.push({ qty: q, minutes: t, date: new Date().toISOString().slice(0, 10) });
+          S.toast(`Logged ${q} pcs of ${op.name} in ${fmtMin(t)} — ${fmtMin(t / q)} per piece`); redraw();
+        });
+        const logRow = el('div', 'jt-log'); logRow.append(rq, rt, add);
+        if (po.runs && po.runs.length) {
+          const clr = el('button', 'btn', 'Clear runs'); clr.type = 'button';
+          clr.addEventListener('click', () => { po.runs = []; redraw(); });
+          logRow.appendChild(clr);
+        }
+        runs.appendChild(logRow);
+        table.append(on, name, min, setup, runs);
+      }
+      ed.appendChild(table);
+      ed.appendChild(el('p', 'tf-hint', 'Type times as minutes (2.5), m:ss (2:30), seconds (90s) or hours (1.5h). Logged runs replace the estimate with the real average.'));
+      const actions = el('div', 'tf-actions');
+      actions.append(
+        button('Use Cut time result for laser cut', () => { if (shared.minutesPerPart) { p.ops.cut = p.ops.cut || { runs: [] }; p.ops.cut.min = shared.minutesPerPart; p.ops.cut.on = true; redraw(); } else S.toast('Open the Cut time tool first to work out the cutting time.'); }),
+        button('Add an operation', () => {
+          const name = 'New operation';
+          const id = 'op' + Date.now();
+          d.ops.push({ id, name, station: 'Bench' });
+          renameOp = id; redraw();
+        }),
+        button('Delete part', () => {
+          if (d.parts.length <= 1) { S.toast('Keep at least one part in the library.'); return; }
+          d.parts = d.parts.filter((x) => x !== p);
+          d.job.lines.forEach((l) => { if (l.partId === p.id) l.partId = d.parts[0].id; });
+          editing = null; redraw();
+        }),
+      );
+      ed.appendChild(actions);
+      // rename / restation custom operations
+      const custom = d.ops.filter((o) => !OPS_DEFAULT.some((x) => x.id === o.id));
+      if (custom.length) {
+        const c = el('div', 'jt-custom'); c.appendChild(el('h4', 'tf-sec', 'Your operations'));
+        for (const o of custom) {
+          const r = el('div', 'jt-custom-row');
+          const n = input(o.name, null, 'Operation name', (i) => { o.name = i.value.trim() || 'Operation'; save(); });
+          if (renameOp === o.id) setTimeout(() => { n.focus(); n.select(); renameOp = null; }, 0);
+          const st = el('select'); st.setAttribute('aria-label', 'Where it is done');
+          for (const v of ['Laser', 'Bench']) { const op = el('option', null, v); op.value = v; st.appendChild(op); }
+          st.value = o.station; st.addEventListener('change', () => { o.station = st.value; save(); });
+          const del = el('button', 'btn', 'Remove'); del.type = 'button';
+          del.addEventListener('click', () => { d.ops = d.ops.filter((x) => x !== o); d.parts.forEach((pp) => delete pp.ops[o.id]); redraw(); });
+          r.append(n, st, del); c.appendChild(r);
+        }
+        ed.appendChild(c);
+      }
+      return ed;
+    }
+    let renameOp = null;
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea'); ta.readOnly = true; ta.value = text; ta.style.minHeight = '140px';
+      const dlg = document.getElementById('dialog');
+      document.getElementById('dlgTitle').textContent = 'Job summary';
+      document.getElementById('dlgText').textContent = 'Select the text and copy it (Ctrl+C).';
+      const body = document.getElementById('dlgBody'); body.textContent = ''; body.appendChild(ta);
+      document.getElementById('dlgCopy').hidden = true;
+      dlg.hidden = false; ta.focus(); ta.select();
+    }
+
+    // one file picker for the page: the tool's own markup is rebuilt on every change
+    let importInput = document.getElementById('jtImport');
+    if (!importInput) {
+      importInput = document.createElement('input'); importInput.type = 'file'; importInput.accept = '.json,application/json';
+      importInput.hidden = true; importInput.id = 'jtImport'; document.body.appendChild(importInput);
+    }
+    importInput.onchange = async () => {
+      const f = importInput.files && importInput.files[0]; if (!f) return;
+      try {
+        const o = JSON.parse(await f.text());
+        if (!o || o.app !== 'jaydev-studio-parts' || !Array.isArray(o.parts)) throw new Error('not a parts library file');
+        for (const op of o.ops || []) if (op && op.id && !d.ops.some((x) => x.id === op.id)) d.ops.push({ id: String(op.id), name: String(op.name || 'Operation'), station: op.station === 'Laser' ? 'Laser' : 'Bench' });
+        let added = 0, updated = 0;
+        for (const p of o.parts) {
+          if (!p || !p.name || !p.ops) continue;
+          const clean = { id: String(p.id || 'p' + Date.now() + added), name: String(p.name), notes: String(p.notes || ''), ops: {} };
+          for (const [k, v] of Object.entries(p.ops)) clean.ops[k] = { on: !!v.on, min: +v.min || 0, setup: +v.setup || 0, runs: (v.runs || []).filter((r) => r.qty > 0 && r.minutes > 0).map((r) => ({ qty: +r.qty, minutes: +r.minutes, date: String(r.date || '') })) };
+          const same = d.parts.find((x) => x.name.toLowerCase() === clean.name.toLowerCase());
+          if (same) { same.ops = clean.ops; same.notes = clean.notes; updated++; } else { d.parts.push(clean); added++; }
+        }
+        S.toast(`Library imported: ${added} new part${added === 1 ? '' : 's'}, ${updated} updated`); redraw();
+      } catch (e) { S.toast('Couldn’t import that file: ' + e.message); }
+      importInput.value = '';
+    };
+    build();
   },
 });
 
