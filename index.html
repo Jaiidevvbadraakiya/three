@@ -811,11 +811,16 @@ canvas.addEventListener('wheel', (e) => {
   const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
   const r = canvas.getBoundingClientRect();
   const vp = new Point(e.clientX - r.left, e.clientY - r.top);
-  if (e.ctrlKey || e.metaKey) zoomAt(vp, view.zoom * Math.exp(-e.deltaY * k * 0.0045));
-  else {
-    view.center = view.center.add(new Point(e.deltaX * k, e.deltaY * k).divide(view.zoom));
+  if (e.shiftKey) {                    // Shift + scroll pans sideways
+    const d = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * k;
+    view.center = view.center.add(new Point(d / view.zoom, 0));
     onViewChanged();
+    return;
   }
+  // Scroll wheel zooms around the pointer. Trackpad pinch arrives as ctrl+wheel with small deltas.
+  const rate = e.ctrlKey || e.metaKey ? 0.01 : 0.0018;
+  const dy = Math.max(-300, Math.min(300, e.deltaY * k));
+  zoomAt(vp, view.zoom * Math.exp(-dy * rate));
 }, { passive: false });
 
 /* ---------- tool definitions ---------- */
@@ -1221,7 +1226,7 @@ tools.hand = {};
    Tool switching, hints, quick actions
    ========================================================================= */
 const HINTS = {
-  select: 'Tap to select · drag corners to resize · top circle rotates · double-tap a shape to edit its points',
+  select: 'Scroll to zoom · tap to select · drag corners to resize · top circle rotates · double-tap a shape to edit its points',
   direct: 'Drag points or handles · double-tap a point to toggle curve/corner · double-tap a line to add a point',
   pen: 'Tap for corners, drag for curves · tap the first point to close · double-tap or “Finish” to end',
   pencil: 'Draw freehand · ending near the start closes the shape',
@@ -1231,7 +1236,7 @@ const HINTS = {
   polygon: 'Drag from the centre outwards · set sides in Tool options',
   star: 'Drag from the centre outwards · set points in Tool options',
   text: 'Tap to place text, then type in the Text box',
-  hand: 'Drag to pan · pinch or Ctrl+scroll to zoom',
+  hand: 'Drag to pan · scroll wheel or pinch to zoom',
 };
 let hintTimer = null;
 function updateHint() { clearTimeout(hintTimer); $('#hint').textContent = HINTS[tool] || ''; }
@@ -1638,7 +1643,7 @@ $('#dialog').addEventListener('click', (e) => { if (e.target.id === 'dialog') $(
 $('#btnHelp').addEventListener('click', () => {
   const list = document.createElement('div'); list.className = 'kbd-list';
   [['V / A', 'Select · Edit points'], ['P / B', 'Pen · Pencil'], ['L R E Y S', 'Line · Rectangle · Ellipse · Polygon · Star'], ['T / H', 'Text · Pan'],
-   ['Space + drag', 'Pan'], ['Ctrl + scroll, pinch', 'Zoom'], ['0', 'Fit artboard'], ['Ctrl Z / Ctrl Shift Z', 'Undo · Redo'],
+   ['Space + drag, middle-drag', 'Pan'], ['Scroll wheel, pinch', 'Zoom'], ['Shift + scroll', 'Pan sideways'], ['0', 'Fit artboard'], ['Ctrl Z / Ctrl Shift Z', 'Undo · Redo'],
    ['Ctrl C / X / V', 'Copy · Cut · Paste (paste SVG code too)'], ['Ctrl D', 'Duplicate'], ['Alt + drag', 'Duplicate while moving'],
    ['Ctrl G / Ctrl Shift G', 'Group · Ungroup'], ['Ctrl A', 'Select all'], ['Del', 'Delete objects or selected points'],
    ['Arrows (Shift)', 'Nudge 1 (10) grid units ÷ 5'], ['Shift', 'Constrain angle or proportions'], ['Enter / Esc', 'Finish pen path']]
@@ -2534,7 +2539,7 @@ function dwgToModel(db, showAll) {
     if (!tryList(db.entities)) {
       source = 'paper';
       if (!tryList(paper)) {
-        // last resort: show every block definition laid out where it was drawn
+        // last resort: show every block definition (laid out side by side after drawing)
         source = 'blocks';
         const inserts = Object.keys(blocks).filter((n) => blocks[n].entities.length && !/^\*/.test(n))
           .map((n) => ({ type: 'INSERT', codes: [[2, n], [10, 0], [20, 0]] }));
@@ -2557,6 +2562,20 @@ function dwgReport(db, ver) {
     ...recs.slice(0, 30).map((r) => `Block "${r.name}": ${fmtC(count(r.entities))}`),
     `Layers: ${layers.length} (${layers.filter((l) => l.off).length} off, ${layers.filter((l) => l.frozen).length} frozen)`,
   ].join('\n');
+}
+// Lay items out left-to-right in rows so block definitions don't sit on top of each other.
+function layoutGrid(items) {
+  const sizes = items.map((i) => i.strokeBounds);
+  const avg = sizes.reduce((a, b) => a + Math.max(b.width, b.height), 0) / items.length || 1;
+  const gap = avg * 0.15;
+  const cols = Math.ceil(Math.sqrt(items.length));
+  let x = 0, y = 0, rowH = 0;
+  items.forEach((it, i) => {
+    if (i && i % cols === 0) { x = 0; y += rowH + gap; rowH = 0; }
+    const b = sizes[i];
+    it.translate(new Point(x - b.x, y - b.y));
+    x += b.width + gap; rowH = Math.max(rowH, b.height);
+  });
 }
 async function importDWG(buf, fileName, mode) {
   toast('Loading the DWG reader (about 8 MB, first time only)…', 30000);
@@ -2585,6 +2604,7 @@ async function importDWG(buf, fileName, mode) {
   }
   const { model, skipped } = conv;
   const { items, skipped: skipped2 } = built;
+  if (conv.source === 'blocks' && items.length > 1) layoutGrid(items);
   if (!items.length) {
     $('#toast').hidden = true;
     const ta = document.createElement('textarea'); ta.readOnly = true; ta.value = dwgReport(db, String.fromCharCode(...new Uint8Array(buf, 0, 6)));
@@ -2600,7 +2620,7 @@ async function importDWG(buf, fileName, mode) {
   const ratio = mode === 'open' ? fitCadToSheet(g) : null;
   const sk = skipped + skipped2;
   toast(`Imported ${items.length} object${items.length === 1 ? '' : 's'} from DWG`
-    + (conv.source === 'paper' ? ' (from the paper-space layout)' : conv.source === 'blocks' ? ' (from block definitions)' : '')
+    + (conv.source === 'paper' ? ' (from the paper-space layout)' : conv.source === 'blocks' ? ' · the main drawing couldn’t be read, so its parts (blocks) are laid out side by side' : '')
     + (ratio ? ` · scaled 1:${ratio} to fit an A3 sheet — Undo for real size` : '')
     + (sk ? ` · ${sk} unsupported (pattern hatches, 3D solids, images, leaders) skipped` : ''), 6000);
 }
