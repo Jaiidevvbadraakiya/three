@@ -2138,8 +2138,31 @@ function parseDXF(text) {
 function gv(e, code) { for (const [c, v] of e.codes) if (c === code) return v; return null; }
 function gn(e, code, def = 0) { const v = gv(e, code); const n = v == null ? NaN : parseFloat(v); return Number.isFinite(n) ? n : def; }
 
+// DXF/DWG "object coordinate system": arcs, circles, 2D polylines, text, inserts, solids and hatches are
+// stored in a plane given by their extrusion direction (codes 210/220/230). With the usual (0,0,1) the
+// plane is the world XY plane; with (0,0,-1) — common from CAM/laser software and mirrored geometry —
+// X is reversed. This is AutoCAD's arbitrary axis algorithm; it returns the OCS X and Y axes in world XY.
+const OCS_TYPES = new Set(['ARC', 'CIRCLE', 'LWPOLYLINE', 'POLYLINE', 'TEXT', 'ATTRIB', 'SOLID', 'TRACE', 'INSERT', '_RAW']);
+function ocsAxes(e) {
+  let nx = gn(e, 210, 0), ny = gn(e, 220, 0), nz = gn(e, 230, 1);
+  const len = Math.hypot(nx, ny, nz);
+  if (!(len > 1e-12)) return null;
+  nx /= len; ny /= len; nz /= len;
+  if (Math.abs(nx) < 1e-9 && Math.abs(ny) < 1e-9 && nz > 0) return null;   // plain world XY
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const norm = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const N = [nx, ny, nz];
+  const ax = norm(Math.abs(nx) < 1 / 64 && Math.abs(ny) < 1 / 64 ? cross([0, 1, 0], N) : cross([0, 0, 1], N));
+  const ay = norm(cross(N, ax));
+  return { a: ax[0], b: ay[0], c: ax[1], d: ay[1] };   // world x = a·x + b·y, world y = c·x + d·y
+}
 function buildDXFItems(dxf) {
-  const F = (x, y) => new Point(x, -y);            // flip Y: DXF is y-up, the canvas is y-down
+  const F0 = (x, y) => new Point(x, -y);           // flip Y: DXF is y-up, the canvas is y-down
+  let F = F0;                                      // per entity: F0, or OCS → world → canvas
+  const ocsMapper = (e) => {
+    const o = ocsAxes(e);
+    return o ? (x, y) => new Point(o.a * x + o.b * y, -(o.c * x + o.d * y)) : null;
+  };
   const rgbHex = (rgb) => '#' + rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
   let skipped = 0;
   const colorFor = (e, ctx) => { const c = colorRaw(e, ctx); return c === '#ffffff' ? '#000000' : c; };
@@ -2204,7 +2227,9 @@ function buildDXFItems(dxf) {
     const t = new PointText({ point: F(x, y), content: str, fontSize: size, fontFamily: 'Helvetica, Arial, sans-serif', justification: just || 'left', insert: false });
     if (valign === 'top') t.translate(new Point(0, h));
     else if (valign === 'middle') t.translate(new Point(0, h / 2));
-    if (rotDeg) t.rotate(-rotDeg, F(x, y));
+    const p0 = F(x, y), r = (rotDeg || 0) * Math.PI / 180;
+    const ang = F(x + Math.cos(r), y + Math.sin(r)).subtract(p0).angle;
+    if (Math.abs(ang) > 1e-9) t.rotate(ang, p0);
     return t;
   };
 
@@ -2213,6 +2238,7 @@ function buildDXFItems(dxf) {
     for (let k = 0; k < list.length; k++) {
       const e = list[k];
       const n = (c, d = 0) => gn(e, c, d);
+      F = OCS_TYPES.has(e.type) && !(e.type === 'POLYLINE' && (n(70) | 0) & 8) ? (ocsMapper(e) || F0) : F0;
       let item = null, filled = false;
       switch (e.type) {
         case 'LINE': item = new Path({ segments: [F(n(10), n(20)), F(n(11), n(21))], insert: false }); break;
@@ -2332,6 +2358,8 @@ function buildDXFItems(dxf) {
               }
               item = arr;
             } else { g.transform(mk(0, 0)); item = g; }
+            const o = ocsAxes(e);
+            if (o) item.transform(new Matrix(o.a, -o.c, -o.b, o.d, 0, 0));
           } else item = g;
           items.push(item);
           item = null;
@@ -2447,6 +2475,10 @@ function dwgToModel(db, showAll, allowFallback = true) {
     if (!e || (!showAll && e.isVisible === false) || hiddenLayers.has(e.layer)) return;
     const codes = [[8, e.layer || '0'], [62, e.colorIndex == null ? 256 : e.colorIndex]];
     if (Number.isFinite(e.color) && e.color >= 0) codes.push([420, e.color]);
+    const ex = e.extrusionDirection;
+    if (ex && e.type !== 'POLYLINE3D' && (Math.abs(ex.x || 0) > 1e-9 || Math.abs(ex.y || 0) > 1e-9 || (ex.z || 0) < 0)) {
+      codes.push([210, ex.x || 0], [220, ex.y || 0], [230, ex.z || 0]);
+    }
     if (e.lineweight >= 0 && e.lineweight < DWG_LW.length && DWG_LW[e.lineweight] > 0) codes.push([370, DWG_LW[e.lineweight]]);
     const P = (code, p) => { if (p) codes.push([code, p.x || 0], [code + 10, p.y || 0]); };
     const ent = (type) => out.push({ type, codes });
