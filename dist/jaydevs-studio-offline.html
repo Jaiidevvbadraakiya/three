@@ -224,7 +224,10 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
 .jt-card { width: 100%; display: grid; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .jt-card:last-of-type { border-bottom: 0; }
 .jt-line { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-.jt-line-head { display: grid; grid-template-columns: minmax(0, 1fr) auto 80px auto auto; gap: 8px; align-items: center; }
+.jt-line-head { display: grid; grid-template-columns: minmax(0, 1fr) auto 80px auto auto auto; gap: 8px; align-items: center; }
+.jt-line.open { border-color: var(--accent); }
+.jt-line .jt-editor { padding: 8px 0 4px; border-top: 1px dashed var(--line); }
+.jt-job-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .jt-line-head select, .jt-qty, .jt-editor input:not([type="checkbox"]), .jt-custom-row select { height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--chrome); padding: 0 10px; min-width: 0; width: 100%; }
 .jt-qty, .jt-num { font: 14px var(--font-mono); font-variant-numeric: tabular-nums; }
 .jt-x { color: var(--muted); }
@@ -260,6 +263,7 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
 .jt-custom-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 8px; }
 @media (max-width: 760px) {
   .jt-line-head { grid-template-columns: minmax(0, 1fr) 64px auto auto; }
+  .jt-line-head .jt-edit { grid-column: 1 / -1; justify-self: start; }
   .jt-line-head .jt-x { display: none; }
   .jt-ops { grid-template-columns: auto minmax(110px, 1fr) 72px 72px; }
   .jt-ops .jt-th:last-child { display: none; }
@@ -4166,7 +4170,7 @@ function parseMinutes(str) {
   return NaN;
 }
 const fmtMin = (min) => (Number.isFinite(min) ? hms(min * 60) : '—');
-const minText = (min) => { if (!Number.isFinite(min)) return ''; const t = Math.round(min * 60); return t % 60 ? `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` : String(t / 60); };
+const minText = (min) => { if (!Number.isFinite(min) || min === 0) return ''; const t = Math.round(min * 60); return t % 60 ? `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` : String(t / 60); };
 function jobData() {
   const d = (store.jobtime = store.jobtime || {});
   if (!d.ops) d.ops = OPS_DEFAULT.map((o) => ({ ...o }));
@@ -4199,7 +4203,14 @@ TOOLS.push({
       const i = el('input', cls); i.type = type || 'text'; i.value = val; i.setAttribute('aria-label', aria); i.autocomplete = 'off';
       i.addEventListener(type === 'checkbox' ? 'change' : 'input', () => onChange(i)); return i;
     };
-    let editing = null;
+    let editing = null, editingAt = null;
+    let refresh = () => {};   // recompute job totals without rebuilding (keeps the cursor in place)
+    const newPart = () => {
+      const p = { id: 'p' + Date.now(), name: 'New part', notes: '', ops: {} };
+      for (const o of d.ops) p.ops[o.id] = { on: o.id === 'cut', min: 0, setup: 0, runs: [] };
+      d.parts.push(p);
+      return p;
+    };
     const partById = (id) => d.parts.find((p) => p.id === id);
     const opById = (id) => d.ops.find((o) => o.id === id);
     const redraw = () => { save(); box.textContent = ''; build(); };
@@ -4221,7 +4232,14 @@ TOOLS.push({
     function build() {
       // ---- the job ----
       const jobCard = el('section', 'jt-card');
-      jobCard.appendChild(el('h4', 'tf-sec', 'This job'));
+      const jh = el('div', 'jt-job-head');
+      jh.append(el('h4', 'tf-sec', 'This job'), button('+ New part', () => {
+        const p = newPart();
+        d.job.lines.push({ partId: p.id, qty: 1, ops: {} });
+        editing = p.id; editingAt = 'line:' + (d.job.lines.length - 1); redraw(); focusEditor();
+      }, true));
+      jobCard.appendChild(jh);
+      jobCard.appendChild(el('p', 'tf-hint', 'Pick a part, type the quantity and tick the extras the customer wants. Click Edit times to set or change a part’s minutes.'));
       const totals = { Laser: 0, Bench: 0 };
       const summary = [];
       d.job.lines.forEach((line, li) => {
@@ -4229,12 +4247,22 @@ TOOLS.push({
         const sel = el('select'); sel.setAttribute('aria-label', 'Part');
         for (const p of d.parts) { const o = el('option', null, p.name); o.value = p.id; sel.appendChild(o); }
         sel.value = line.partId;
-        sel.addEventListener('change', () => { line.partId = sel.value; line.ops = {}; redraw(); });
+        const add = el('option', null, '+ New part…'); add.value = '__new'; sel.appendChild(add);
+        sel.addEventListener('change', () => {
+          if (sel.value === '__new') { const p = newPart(); line.partId = p.id; line.ops = {}; editing = p.id; editingAt = 'line:' + li; redraw(); focusEditor(); return; }
+          line.partId = sel.value; line.ops = {}; if (editingAt === 'line:' + li) editing = sel.value; redraw();
+        });
         const qty = input(line.qty, 'jt-qty', 'Quantity', (i) => { line.qty = Math.max(0, parseInt(i.value, 10) || 0); save(); refreshTotals(); });
         qty.inputMode = 'numeric';
+        const openHere = editing === line.partId && editingAt === 'line:' + li;
+        const ed = button(openHere ? 'Done' : 'Edit times', () => {
+          if (openHere) { editing = null; editingAt = null; } else { editing = line.partId; editingAt = 'line:' + li; }
+          redraw(); if (!openHere) focusEditor();
+        });
+        ed.classList.add('jt-edit');
         const rm = el('button', 'btn icon jt-remove', '×'); rm.type = 'button'; rm.title = 'Remove from job'; rm.setAttribute('aria-label', 'Remove from job');
         rm.addEventListener('click', () => { d.job.lines.splice(li, 1); redraw(); });
-        const head = el('div', 'jt-line-head'); head.append(sel, el('span', 'jt-x', '×'), qty, el('span', 'tf-suffix', 'pcs'), rm);
+        const head = el('div', 'jt-line-head'); head.append(sel, el('span', 'jt-x', '×'), qty, el('span', 'tf-suffix', 'pcs'), ed, rm);
         row.appendChild(head);
         const p = partById(line.partId);
         const chips = el('div', 'jt-chips');
@@ -4248,6 +4276,7 @@ TOOLS.push({
           chips.appendChild(lab);
         }
         row.appendChild(chips);
+        if (p && openHere) { row.classList.add('open'); row.appendChild(editor(p)); }
         const out = el('div', 'jt-line-total'); row.appendChild(out);
         row._out = out; row._line = line;
         jobCard.appendChild(row);
@@ -4289,30 +4318,30 @@ TOOLS.push({
         ]));
       }
       refreshTotals();
+      refresh = refreshTotals;
 
       // ---- parts library ----
       const lib = el('section', 'jt-card');
       lib.appendChild(el('h4', 'tf-sec', 'Parts library'));
       const list = el('div', 'jt-parts');
       for (const p of d.parts) {
-        const item = el('div', 'jt-part' + (editing === p.id ? ' open' : ''));
+        const item = el('div', 'jt-part' + (editing === p.id && editingAt === 'lib' ? ' open' : ''));
         const head = el('div', 'jt-part-head');
         const nm = el('b', null, p.name);
         const ops = d.ops.filter((o) => p.ops[o.id] && p.ops[o.id].on).map((o) => o.name).join(' · ') || 'No default operations';
         const info = el('span', null, ops);
         const t = el('div'); t.append(nm, info);
-        head.append(t, button(editing === p.id ? 'Done' : 'Edit', () => { editing = editing === p.id ? null : p.id; redraw(); }));
+        const inLib = editing === p.id && editingAt === 'lib';
+        head.append(t, button(inLib ? 'Done' : 'Edit', () => { if (inLib) { editing = null; editingAt = null; } else { editing = p.id; editingAt = 'lib'; } redraw(); if (!inLib) focusEditor(); }));
         item.appendChild(head);
-        if (editing === p.id) item.appendChild(editor(p));
+        if (inLib) item.appendChild(editor(p));
         list.appendChild(item);
       }
       lib.appendChild(list);
       const libActions = el('div', 'tf-actions');
       libActions.append(
         button('New part', () => {
-          const p = { id: 'p' + Date.now(), name: 'New part', notes: '', ops: {} };
-          for (const o of d.ops) p.ops[o.id] = { on: o.id === 'cut', min: 0, setup: 0, runs: [] };
-          d.parts.push(p); editing = p.id; redraw();
+          const p = newPart(); editing = p.id; editingAt = 'lib'; redraw(); focusEditor();
         }, true),
         button('Export library', () => {
           const data = JSON.stringify({ app: 'jaydev-studio-parts', version: 1, ops: d.ops, parts: d.parts }, null, 1);
@@ -4328,7 +4357,10 @@ TOOLS.push({
     function editor(p) {
       const ed = el('div', 'jt-editor');
       const nameRow = el('label', 'tf-row');
-      nameRow.append(el('span', 'tf-label', 'Part name'), input(p.name, null, 'Part name', (i) => { p.name = i.value.trim() || 'Unnamed part'; save(); }), el('span'));
+      nameRow.append(el('span', 'tf-label', 'Part name'), input(p.name, 'jt-name', 'Part name', (i) => {
+        p.name = i.value.trim() || 'Unnamed part'; save();
+        box.querySelectorAll(`option[value="${p.id}"]`).forEach((o) => { o.textContent = p.name; });
+      }), el('span'));
       ed.appendChild(nameRow);
       const notesRow = el('label', 'tf-row');
       notesRow.append(el('span', 'tf-label', 'Notes'), input(p.notes || '', null, 'Notes', (i) => { p.notes = i.value; save(); }), el('span'));
@@ -4337,11 +4369,12 @@ TOOLS.push({
       for (const h of ['Default', 'Operation', 'Min / piece', 'Setup min', 'Real runs']) table.appendChild(el('span', 'jt-th', h));
       for (const op of d.ops) {
         const po = (p.ops[op.id] = p.ops[op.id] || { on: false, min: 0, setup: 0, runs: [] });
-        const on = input('', null, `Use ${op.name} by default`, (i) => { po.on = i.checked; save(); }, 'checkbox'); on.checked = !!po.on;
+        const on = input('', null, `Use ${op.name} by default`, (i) => { po.on = i.checked; redraw(); }, 'checkbox'); on.checked = !!po.on;
         const name = el('span', 'jt-opname'); name.append(el('b', null, op.name), el('small', null, op.station));
-        const min = input(minText(po.min), 'jt-num', `${op.name} minutes per piece`, (i) => { const v = parseMinutes(i.value); i.classList.toggle('bad', i.value.trim() !== '' && !Number.isFinite(v)); po.min = Number.isFinite(v) ? v : 0; save(); });
-        min.placeholder = 'm:ss';
-        const setup = input(minText(po.setup), 'jt-num', `${op.name} setup minutes`, (i) => { const v = parseMinutes(i.value); i.classList.toggle('bad', i.value.trim() !== '' && !Number.isFinite(v)); po.setup = Number.isFinite(v) ? v : 0; save(); });
+        const min = input(minText(po.min), 'jt-num', `${op.name} minutes per piece`, (i) => { const v = parseMinutes(i.value); i.classList.toggle('bad', i.value.trim() !== '' && !Number.isFinite(v)); po.min = Number.isFinite(v) ? v : 0; save(); refresh(); });
+        min.placeholder = '0';
+        const setup = input(minText(po.setup), 'jt-num', `${op.name} setup minutes`, (i) => { const v = parseMinutes(i.value); i.classList.toggle('bad', i.value.trim() !== '' && !Number.isFinite(v)); po.setup = Number.isFinite(v) ? v : 0; save(); refresh(); });
+        setup.placeholder = '0';
         const runs = el('div', 'jt-runs');
         const avg = opMinutes(po);
         runs.appendChild(el('small', null, po.runs && po.runs.length ? `${fmtMin(avg.min)}/pc, ${avg.from}` : 'No runs logged'));
@@ -4378,7 +4411,7 @@ TOOLS.push({
           if (d.parts.length <= 1) { S.toast('Keep at least one part in the library.'); return; }
           d.parts = d.parts.filter((x) => x !== p);
           d.job.lines.forEach((l) => { if (l.partId === p.id) l.partId = d.parts[0].id; });
-          editing = null; redraw();
+          editing = null; editingAt = null; redraw();
         }),
       );
       ed.appendChild(actions);
@@ -4402,6 +4435,12 @@ TOOLS.push({
       return ed;
     }
     let renameOp = null;
+    // bring the editor that just opened into view and put the cursor in the part name
+    const focusEditor = () => setTimeout(() => {
+      const n = box.querySelector('.jt-editor .jt-name'); if (!n) return;
+      n.closest('.jt-editor').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      if (n.value === 'New part') { n.focus(); n.select(); }
+    }, 0);
 
     function fallbackCopy(text) {
       const ta = document.createElement('textarea'); ta.readOnly = true; ta.value = text; ta.style.minHeight = '140px';
