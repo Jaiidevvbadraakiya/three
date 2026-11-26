@@ -437,6 +437,20 @@ if (!window.paper) {
 }
 
 paper.setup(canvas);
+// On screen, never draw a stroke thinner than about one pixel (as CAD programs do), so 0.25 mm lines on
+// metre-sized drawings stay visible when zoomed out. Display only: stored widths and exports are unchanged.
+(() => {
+  const setStyles = paper.Item.prototype._setStyles;
+  if (typeof setStyles !== 'function') return;
+  paper.Item.prototype._setStyles = function (ctx, param, viewMatrix) {
+    setStyles.call(this, ctx, param, viewMatrix);
+    if (!(ctx.lineWidth > 0) || !ctx.getTransform) return;
+    const t = ctx.getTransform();
+    const sc = Math.sqrt(Math.abs(t.a * t.d - t.b * t.c)) || 1;
+    const min = Math.max(1, (window.devicePixelRatio || 1) * 0.9);
+    if (ctx.lineWidth * sc < min) ctx.lineWidth = min / sc;
+  };
+})();
 const { Path, Point, Rectangle, Size, Group, Layer, CompoundPath, PointText, Raster, Color, Matrix } = paper;
 const view = paper.view;
 const project = paper.project;
@@ -2233,6 +2247,70 @@ function buildDXFItems(dxf) {
     return t;
   };
 
+  // A DIMENSION normally points at a block holding its drawn lines, arrows and text. Some writers omit
+  // that block; then draw linear (rotated / aligned) dimensions from their measurement points.
+  const inchDrawing = () => (cadUnits === 'auto' ? dxf.units === 1 : cadUnits === 'in');
+  const fmtMeasure = (v) => {
+    if (!inchDrawing()) return String(+v.toFixed(2));
+    let whole = Math.floor(v + 1e-9), num = Math.round((v - whole) * 16), den = 16;
+    if (num === 16) { whole++; num = 0; }
+    while (num && num % 2 === 0) { num /= 2; den /= 2; }
+    return (whole || !num ? String(whole) : '') + (num ? (whole ? ' ' : '') + num + '/' + den : '') + ' in';
+  };
+  const drawDimension = (e, col) => {
+    const g = new Group({ insert: false });
+    const n = (c, d = 0) => gn(e, c, d);
+    const typ = (n(70) | 0) & 7;
+    const scale = dxf.dimscale > 0 ? dxf.dimscale : 1;
+    // without a DIMSCALE from the file, size text to the dimension so it stays readable on large parts
+    if (dxf._dimSpan == null) {   // one text size for every dimension in the drawing
+      dxf._dimSpan = 0;
+      const all = [dxf.entities, ...Object.values(dxf.blocks || {}).map((b) => b.entities)];
+      for (const list of all) for (const d of list || []) if (d.type === 'DIMENSION') {
+        dxf._dimSpan = Math.max(dxf._dimSpan, Math.hypot(gn(d, 14) - gn(d, 13), gn(d, 24) - gn(d, 23)) || gn(d, 42));
+      }
+    }
+    let th = (dxf.dimtxt > 0 ? dxf.dimtxt : inchDrawing() ? 0.18 : 2.5) * scale;
+    if (!(dxf.dimscale > 0)) th = Math.max(th, dxf._dimSpan * 0.025);
+    const asz = dxf.dimasz > 0 ? dxf.dimasz * scale : th;
+    const raw = cleanMText(gv(e, 1) || '').trim();
+    const label = (m) => (!raw || raw === '<>' ? m : raw.replace('<>', m));
+    const line = (a, b) => g.addChild(new Path({ segments: [F0(a.x, a.y), F0(b.x, b.y)], strokeColor: col, strokeWidth: 0.18, insert: false }));
+    const V = (x, y) => ({ x, y });
+    const sub = (a, b) => V(a.x - b.x, a.y - b.y), add = (a, b) => V(a.x + b.x, a.y + b.y), mul = (a, k) => V(a.x * k, a.y * k);
+    const dot = (a, b) => a.x * b.x + a.y * b.y, len = (a) => Math.hypot(a.x, a.y);
+    const unit = (a) => { const l = len(a) || 1; return V(a.x / l, a.y / l); };
+    const tp = V(n(11), n(21));
+    if (typ === 0 || typ === 1) {
+      const p1 = V(n(13), n(23)), p2 = V(n(14), n(24)), d = V(n(10), n(20));
+      const r = n(50) * Math.PI / 180;
+      const u = typ === 1 && len(sub(p2, p1)) > 0 ? unit(sub(p2, p1)) : V(Math.cos(r), Math.sin(r));
+      const proj = (q) => add(d, mul(u, dot(sub(q, d), u)));
+      const q1 = proj(p1), q2 = proj(p2);
+      for (const [p, q] of [[p1, q1], [p2, q2]]) {
+        const v = sub(q, p);
+        if (len(v) > 1e-9) { const w = unit(v); line(add(p, mul(w, asz * 0.35)), add(q, mul(w, asz * 0.6))); }
+      }
+      line(q1, q2);
+      const dir = unit(sub(q2, q1)), nrm = V(-dir.y, dir.x);
+      for (const [tip, k] of [[q1, 1], [q2, -1]]) {
+        const base = add(tip, mul(dir, asz * k));
+        g.addChild(new Path({ segments: [F0(tip.x, tip.y), F0(base.x + nrm.x * asz / 6, base.y + nrm.y * asz / 6), F0(base.x - nrm.x * asz / 6, base.y - nrm.y * asz / 6)], closed: true, fillColor: col, insert: false }));
+      }
+      let ang = Math.atan2(dir.y, dir.x) * 180 / Math.PI;
+      if (ang > 90.01 || ang < -89.99) ang += 180;
+      let at = len(tp) > 0 ? tp : add(mul(add(q1, q2), 0.5), mul(nrm, th * 0.8));
+      const off = dot(sub(at, q1), nrm);                  // keep the text clear of the dimension line
+      if (Math.abs(off) < th * 0.75) at = add(at, mul(nrm, (off < 0 ? -1 : 1) * (th * 0.75 - Math.abs(off))));
+      const meas = n(42) > 0 ? n(42) : len(sub(q2, q1));
+      const t = textItem(label(fmtMeasure(meas)), at.x, at.y, th, ang, 'center', 'middle');
+      if (t) { t.fillColor = col; g.addChild(t); }
+    } else if (len(tp) > 0) {
+      const t = textItem(label(fmtMeasure(n(42))), tp.x, tp.y, th, 0, 'center', 'middle');
+      if (t) { t.fillColor = col; g.addChild(t); }
+    }
+    return g.children.length ? g : null;
+  };
   const build = (list, ctx) => {
     const items = [];
     for (let k = 0; k < list.length; k++) {
@@ -2341,6 +2419,11 @@ function buildDXFItems(dxf) {
         }
         case 'INSERT': case 'DIMENSION': {
           const block = dxf.blocks[(gv(e, 2) || '').trim()];
+          if (e.type === 'DIMENSION' && (!block || !block.entities.length)) {
+            const dim = drawDimension(e, colorFor(e, ctx));
+            if (dim) items.push(dim); else skipped++;
+            break;
+          }
           if (!block || (ctx.depth || 0) > 8) { if (!block) skipped++; break; }
           const kids = build(block.entities, { depth: (ctx.depth || 0) + 1, blockColor: colorFor(e, ctx) });
           if (!kids.length) break;
@@ -2459,7 +2542,7 @@ function ensureLibreDwg() {
 }
 const DWG_LW = [0, 5, 9, 13, 15, 18, 20, 25, 30, 35, 40, 50, 53, 60, 70, 80, 90, 100, 106, 120, 140, 158, 200, 211];
 const DEG = 180 / Math.PI;
-function dwgToModel(db, showAll, allowFallback = true) {
+function dwgToModel(db, showAll, allowFallback = true, forced = null) {
   const hiddenLayers = new Set();
   const layers = {};
   const layerList = (db.tables && db.tables.LAYER && db.tables.LAYER.entries) || [];
@@ -2530,7 +2613,12 @@ function dwgToModel(db, showAll, allowFallback = true) {
         for (const a of e.attribs || []) conv(a, out);
         break;
       }
-      case 'DIMENSION': codes.push([2, e.name || '']); ent('DIMENSION'); break;
+      case 'DIMENSION':
+        codes.push([2, e.name || '']);
+        P(10, e.definitionPoint); P(11, e.textPoint); P(13, e.subDefinitionPoint1); P(14, e.subDefinitionPoint2);
+        codes.push([42, e.measurement || 0], [1, e.text || ''], [70, e.dimensionType || 0], [50, (e.rotationAngle || 0) * DEG]);
+        ent('DIMENSION');
+        break;
       case 'HATCH': {
         if (!e.solidFill) { skipped++; break; }
         const paths = e.boundaryPaths || [];
@@ -2593,6 +2681,12 @@ function dwgToModel(db, showAll, allowFallback = true) {
   const before = skipped;
   let entities = [];
   const tryList = (list) => { entities = []; for (const e of list || []) conv(e, entities); return entities.length > 0; };
+  const hdr = db.header || {};
+  const dimStyle = { dimtxt: hdr.DIMTXT, dimasz: hdr.DIMASZ, dimscale: hdr.DIMSCALE };
+  if (forced) {
+    tryList(forced.filter((e) => e.type !== 'VIEWPORT'));
+    return { model: { units: hdr.INSUNITS || 0, layers, blocks, entities, ...dimStyle }, skipped: skipped - before, source: 'layout' };
+  }
   const records = (db.tables && db.tables.BLOCK_RECORD && db.tables.BLOCK_RECORD.entries) || [];
   const paper = records.filter((r) => /^\*paper_space/i.test(r.name || '')).flatMap((r) => r.entities || []);
   let source = 'model';
@@ -2609,7 +2703,7 @@ function dwgToModel(db, showAll, allowFallback = true) {
       }
     }
   }
-  return { model: { units: (db.header && db.header.INSUNITS) || 0, layers, blocks, entities }, skipped: skipped - before, source };
+  return { model: { units: hdr.INSUNITS || 0, layers, blocks, entities, ...dimStyle }, skipped: skipped - before, source };
 }
 const DWG_VERSIONS = { AC1009: 'R11/R12', AC1012: 'R13', AC1014: 'R14', AC1015: 'AutoCAD 2000', AC1018: 'AutoCAD 2004', AC1021: 'AutoCAD 2007', AC1024: 'AutoCAD 2010', AC1027: 'AutoCAD 2013', AC1032: 'AutoCAD 2018+' };
 function dwgReport(db, ver) {
@@ -2638,6 +2732,68 @@ function layoutGrid(items) {
     const b = sizes[i];
     it.translate(new Point(x - b.x, y - b.y));
     x += b.width + gap; rowH = Math.max(rowH, b.height);
+  });
+}
+// The printed sheet of a DWG lives in a paper-space layout: title block, notes and dimensions, plus
+// viewports that show model space at a scale. Pick the layout that has real content.
+function findLayout(db) {
+  const recs = (db.tables && db.tables.BLOCK_RECORD && db.tables.BLOCK_RECORD.entries) || [];
+  const hx = (h) => parseInt(h || '0', 16) || 0;
+  let best = null;
+  for (const r of recs.filter((x) => /^\*paper_space/i.test(x.name || ''))) {
+    const ents = r.entities || [];
+    const vps = ents.filter((e) => e.type === 'VIEWPORT').sort((a, b) => hx(a.handle) - hx(b.handle));
+    // the first viewport of a layout (id 1) is the sheet itself, not a window onto the model
+    const windows = vps.filter((v, i) => (v.viewportId != null ? v.viewportId !== 1 : i > 0) && v.width > 0 && v.height > 0 && v.viewHeight > 0);
+    const content = ents.filter((e) => e.type !== 'VIEWPORT');
+    const score = content.length + windows.length * 5 + (/^\*paper_space$/i.test(r.name) ? 0.5 : 0);
+    // only a layout with its own content (title block, notes) is worth offering; AutoCAD's default layout is just a viewport
+    if (content.length && (!best || score > best.score)) best = { name: r.name, content, windows, score };
+  }
+  return best;
+}
+function buildLayoutItems(db, modelItems, showAll) {
+  const lay = findLayout(db);
+  if (!lay) return null;
+  const out = [];
+  for (const vp of lay.windows) {
+    const s = vp.height / vp.viewHeight;
+    const c = vp.viewportCenter || { x: 0, y: 0 };
+    const t = vp.targetPoint || { x: 0, y: 0 }, dc = vp.displayCenter || { x: 0, y: 0 };
+    const vx = (t.x || 0) + (dc.x || 0), vy = (t.y || 0) + (dc.y || 0);
+    const content = new Group({ children: modelItems.map((i) => i.clone({ insert: false })), insert: false });
+    content.transform(new Matrix().translate(c.x, -c.y).rotate(-(vp.viewTwistAngle || 0) * DEG).scale(s).translate(-vx, vy));
+    const clip = new Path.Rectangle({ rectangle: new Rectangle(c.x - vp.width / 2, -c.y - vp.height / 2, vp.width, vp.height), insert: false });
+    const win = new Group({ children: [clip, content], insert: false });
+    win.clipped = true;
+    win.name = 'Viewport';
+    out.push(win);
+  }
+  const paper = dwgToModel(db, showAll, false, lay.content);
+  const built = buildDXFItems(paper.model);
+  out.push(...built.items);
+  return { items: out, name: lay.name, windows: lay.windows.length, skipped: paper.skipped + built.skipped };
+}
+// In-page choice dialog (the viewer blocks window.confirm). Resolves with the chosen value;
+// closing the dialog picks the first option.
+function choose(title, text, options) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => { if (done) return; done = true; $('#dialog').hidden = true; resolve(v); };
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:grid;gap:8px';
+    for (const o of options) {
+      const b = document.createElement('button');
+      b.className = 'btn' + (o.primary ? ' primary' : '');
+      b.style.cssText = 'height:auto;padding:10px 12px;flex-direction:column;align-items:flex-start;gap:2px;white-space:normal;text-align:left';
+      const t = document.createElement('b'); t.textContent = o.label;
+      const d = document.createElement('span'); d.textContent = o.desc; d.style.cssText = 'font-size:12px;opacity:.85;font-weight:400';
+      b.append(t, d);
+      b.addEventListener('click', () => finish(o.value));
+      wrap.appendChild(b);
+    }
+    dialog(title, text, wrap);
+    $('#dlgClose').addEventListener('click', () => finish(options[0].value), { once: true });
   });
 }
 async function importDWG(buf, fileName, mode) {
@@ -2671,9 +2827,24 @@ async function importDWG(buf, fileName, mode) {
     if (attempt(true, false)) hiddenShown = true;
     else if (!attempt(false, true)) attempt(true, true);
   }
-  const { model, skipped } = conv;
-  const { items, skipped: skipped2 } = built;
+  const { model } = conv;
+  let { skipped } = conv;
+  let { items, skipped: skipped2 } = built;
   if (conv.source === 'blocks' && items.length > 1) layoutGrid(items);
+  // Offer the printed sheet when the file has a layout with content
+  let sheet = null;
+  const lay = items.length && (conv.source === 'model' || conv.source === 'all') ? findLayout(db) : null;
+  if (lay) {
+    $('#toast').hidden = true;
+    const pick = await choose('This drawing has a printed sheet', 'Choose what to open. You can open the file again to switch.', [
+      { value: 'layout', label: 'Full sheet — as printed', desc: 'Title block, notes and dimensions, with the part shown at the sheet’s scale.', primary: true },
+      { value: 'model', label: 'Parts only — for cutting', desc: 'Just the part geometry at real size.' },
+    ]);
+    if (pick === 'layout') {
+      sheet = buildLayoutItems(db, items, hiddenShown);
+      if (sheet && sheet.items.length) { items = sheet.items; skipped = sheet.skipped; skipped2 = 0; } else sheet = null;
+    }
+  }
   if (!items.length) {
     $('#toast').hidden = true;
     const ta = document.createElement('textarea'); ta.readOnly = true; ta.value = dwgReport(db, String.fromCharCode(...new Uint8Array(buf, 0, 6)));
@@ -2686,9 +2857,10 @@ async function importDWG(buf, fileName, mode) {
   if (f !== 1) g.scale(f, new Point(0, 0));
   if (mode === 'open') artLayer.removeChildren();
   placeImported(g, null, fileName, mode);
-  const ratio = mode === 'open' ? fitCadToSheet(g) : null;
+  const ratio = mode === 'open' && !sheet ? fitCadToSheet(g) : null;
   const sk = skipped + skipped2;
   toast(`Imported ${items.length} object${items.length === 1 ? '' : 's'} from DWG`
+    + (sheet ? ` · printed sheet with ${sheet.windows} viewport${sheet.windows === 1 ? '' : 's'}` : '')
     + (hiddenShown ? ' · layers marked hidden in the file are shown' : '')
     + unitNote(model.units)
     + (conv.source === 'paper' ? ' (from the paper-space layout)' : conv.source === 'blocks' ? ' · the main drawing couldn’t be read, so its parts (blocks) are laid out side by side' : '')
@@ -3045,7 +3217,7 @@ function boot() {
 boot();
 
 // test hooks (harmless in production)
-window.__vellum = { importDWG, dwgToModel, dwgReport, buildDXFItems, ensureLibreDwg, buildSVG, buildPDF, buildDXF, parseDXF, importDXFText, importSVGText, importPDF, openFile, artLayer, doc, setTool, setSelection, get selection() { return selection; }, commit, undo, redo };
+window.__vellum = { choose, findLayout, buildLayoutItems, importDWG, dwgToModel, dwgReport, buildDXFItems, ensureLibreDwg, buildSVG, buildPDF, buildDXF, parseDXF, importDXFText, importSVGText, importPDF, openFile, artLayer, doc, setTool, setSelection, get selection() { return selection; }, commit, undo, redo };
 })();
 </script>
 </body>
