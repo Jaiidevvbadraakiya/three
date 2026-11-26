@@ -1,6 +1,14 @@
 # Jaydev’s Studio — vector editor in the browser
 
-A single-file web app (`index.html`) for drawing, editing, importing and exporting vector files. No build step and no server: open `index.html` in a browser, or host it on any static host (e.g. GitHub Pages).
+A single-file web app for drawing, editing, importing and exporting vector files, with calculators for a laser shop.
+
+- **`dist/jaydevs-studio-offline.html`** — everything packed into one file (≈4 MB). Copy it anywhere (USB stick, shared drive) and double-click; it needs no internet connection.
+- **`index.html`** — the same app, loading its libraries from a CDN. Rebuild the offline file after changing it:
+
+  ```
+  npm install
+  npm run build:offline
+  ```
 
 ## What it does
 
@@ -12,6 +20,8 @@ A single-file web app (`index.html`) for drawing, editing, importing and exporti
 - **SVG**: width/height in your chosen unit, 1 user unit = 1 mm.
 - **PDF**: true vector output at artboard size (jsPDF). Text uses the standard Helvetica/Times/Courier fonts.
 - **DXF**: AutoCAD R12 ASCII with LINE/POLYLINE/TEXT entities. Curves are flattened to 0.02 mm, Y axis flipped to CAD convention, units written to `$INSUNITS` (mm, or cm/in if selected).
+
+**Shop tools** (button in the top bar): fractions ↔ decimals ↔ mm, sheet layout (parts per sheet, sheets needed, with diagram), cut time, job quote, panel maker (square, rounded or chamfered corners, drawn into the editor), measure selection, kerf compensation and an acrylic thickness chart. Values are remembered; inputs accept `41 5/16`, `41.303`, `1049mm`.
 
 Your drawing autosaves in the browser. Use **Save project** to keep an editable copy.
 

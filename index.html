@@ -173,6 +173,66 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
 
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 
+/* Shop tools view */
+.tools-view {
+  position: fixed; inset: 0; z-index: 30; background: var(--bg); display: flex; flex-direction: column;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px)); padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.tv-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: none; }
+.tv-head > b { font-size: 16px; font-weight: 600; }
+.tv-sub { color: var(--muted); font-size: 12px; }
+.tv-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 10px; margin-top: 8px; }
+.tv-nav { overflow-y: auto; display: flex; flex-direction: column; gap: 2px; background: var(--chrome); border: 1px solid var(--line); border-radius: 10px; padding: 6px; }
+.tv-item { text-align: left; border: 0; background: transparent; border-radius: 8px; padding: 8px 10px; cursor: pointer; display: grid; gap: 2px; color: var(--ink); flex: none; }
+.tv-item:hover { background: var(--bg); }
+.tv-item b { font-weight: 600; font-size: 13.5px; }
+.tv-item span { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.tv-item[aria-current="true"] { background: var(--accent-soft); }
+.tv-main { overflow-y: auto; background: var(--chrome); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; min-width: 0; }
+.tv-title { margin: 0; font-size: 20px; font-weight: 600; text-wrap: balance; }
+.tv-desc { margin: 4px 0 14px; color: var(--muted); }
+.tv-tool { display: grid; gap: 14px; max-width: 660px; justify-items: start; }
+.tv-tool > * { max-width: 100%; }
+.tf-grid, .tf-results, .tf-diagram, .tf-tablewrap { width: 100%; }
+.tf-grid { display: grid; gap: 8px; }
+.tf-sec { margin: 8px 0 0; font: 600 10.5px var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tf-row { display: grid; grid-template-columns: minmax(110px, 200px) minmax(0, 1fr) 48px; align-items: center; gap: 4px 10px; }
+.tf-row[hidden] { display: none !important; }
+.tf-label { font-size: 13px; }
+.tf-row input, .tf-row select { height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 0 10px; font: 14px var(--font-mono); font-variant-numeric: tabular-nums; min-width: 0; width: 100%; }
+.tf-row input:focus, .tf-row select:focus { outline: none; border-color: var(--accent); }
+.tf-row input.bad { border-color: var(--danger); }
+.tf-row input[type="checkbox"] { width: 18px; height: 18px; justify-self: start; padding: 0; }
+.tf-suffix { font: 12px var(--font-mono); color: var(--muted); }
+.tf-hint { grid-column: 2 / 4; color: var(--muted); font-size: 12px; margin: 0; }
+.tf-results { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; align-items: baseline; }
+.tf-results span { color: var(--muted); font-size: 13px; }
+.tf-results b { font: 500 14px var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tf-results b.big { font-size: 18px; color: var(--accent); }
+.tf-diagram { display: block; max-height: 340px; background: #fff; border: 1px solid var(--line); border-radius: 8px; margin-top: 10px; }
+.tf-diagram .sheet { fill: #fff; stroke: #1d2630; stroke-width: 1; }
+.tf-diagram .part { fill: rgba(11, 111, 106, .14); stroke: #0b6f6a; stroke-width: 1; }
+.tf-diagram .part.rot { fill: rgba(242, 193, 78, .32); stroke: #9a730c; }
+.tf-diagram .outline { fill: rgba(11, 111, 106, .08); stroke: #1d2630; stroke-width: 1.5; }
+.tf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.tf-tablewrap { overflow-x: auto; }
+.tf-table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tf-table th, .tf-table td { text-align: left; padding: 7px 18px 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.tf-table th { font: 600 11px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.tf-table td:first-child { font-weight: 600; }
+.tf-table td:not(:first-child) { font-family: var(--font-mono); }
+@media (max-width: 760px) {
+  .tv-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .tv-nav { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
+  .tv-item { width: 160px; }
+  .tv-item span { display: none; }
+  .tv-main { padding: 14px; }
+  .tf-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; }
+  .tf-hint { grid-column: 1 / 4; }
+  .tv-sub { display: none; }
+}
+
 @media (max-width: 760px) {
   .only-narrow { display: inline-flex; }
   .hide-narrow { display: none; }
@@ -219,6 +279,7 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
       <button class="btn primary" id="expPDF" title="Download PDF">PDF</button>
       <button class="btn primary" id="expDXF" title="Download DXF (R12, polylines)">DXF</button>
     </div>
+    <button class="btn" id="btnTools" title="Calculators for the shop: fractions, sheet layout, cut time, quotes, panels">Shop tools</button>
     <button class="btn icon hide-narrow" id="btnHelp" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">?</button>
     <button class="btn only-narrow" id="btnPanel" aria-expanded="false">Properties</button>
   </header>
@@ -2524,17 +2585,39 @@ function importDXFText(text, fileName, mode) {
    group-code form the DXF reader uses, so both formats share one drawing path. */
 const LIBREDWG = 'https://cdn.jsdelivr.net/npm/@mlightcad/libredwg-web@0.9.4';
 let dwgReady = null;
+// The offline build (scripts/build-offline.mjs) packs these libraries into the page as gzip+base64
+// blocks: <script type="application/x-gzip-base64" id="lib-NAME">. Online builds load them from the CDN.
+async function embeddedLib(name) {
+  const el = document.getElementById('lib-' + name);
+  if (!el) return null;
+  const bin = atob(el.textContent.trim());
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+const jsBlobURL = (bytes) => URL.createObjectURL(new Blob([bytes], { type: 'text/javascript' }));
 function ensureLibreDwg() {
   if (!dwgReady) {
     dwgReady = (async () => {
-      const wrap = await import(LIBREDWG + '/dist/libredwg-web.js');
-      let bytes = null, lastErr = null;
+      let wrap;
+      const glue = await embeddedLib('libredwg-glue');
+      if (glue) {
+        // the wrapper imports the engine as "../wasm/libredwg-web.js"; point it at the packed copy
+        const glueURL = jsBlobURL(glue);
+        const dist = new TextDecoder().decode(await embeddedLib('libredwg-dist')).split('../wasm/libredwg-web.js').join(glueURL);
+        wrap = await import(jsBlobURL(new TextEncoder().encode(dist)));
+      } else {
+        wrap = await import(LIBREDWG + '/dist/libredwg-web.js');
+      }
+      let bytes = await embeddedLib('libredwg-wasm'), lastErr = null;
       // CDN first; a copy published next to the page is the fallback where cross-site fetches are blocked
-      for (const u of [LIBREDWG + '/wasm/libredwg-web.wasm', 'libredwg-web.wasm']) {
+      for (const u of bytes ? [] : [LIBREDWG + '/wasm/libredwg-web.wasm', 'libredwg-web.wasm']) {
         try { const r = await fetch(u); if (r.ok) { bytes = new Uint8Array(await r.arrayBuffer()); break; } } catch (e) { lastErr = e; }
       }
       if (!bytes) throw lastErr || new Error('DWG engine download failed');
-      const inst = await wrap.createModule({ wasmBinary: bytes });
+      // locateFile: a packed copy runs from a blob: URL, which can't serve as a base for the engine's file name
+      const inst = await wrap.createModule({ wasmBinary: bytes, locateFile: (f) => f });
       return { wrap, lib: wrap.LibreDwg.createByWasmInstance(inst) };
     })();
     dwgReady.catch(() => { dwgReady = null; });
@@ -2924,11 +3007,13 @@ let pdfjsReady = null;
 function ensurePdfJs() {
   if (!pdfjsReady) {
     pdfjsReady = (async () => {
-      await loadScript(PDFJS_WORKER);     // runs pdf.js in this page (no separate worker needed)
-      await loadScript(PDFJS);
+      const w = await embeddedLib('pdfjs-worker'), m = await embeddedLib('pdfjs');
+      const workerURL = w ? jsBlobURL(w) : PDFJS_WORKER;
+      await loadScript(workerURL);        // runs pdf.js in this page (no separate worker needed)
+      await loadScript(m ? jsBlobURL(m) : PDFJS);
       const lib = window.pdfjsLib;
       if (!lib) throw new Error('PDF reader unavailable');
-      lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      lib.GlobalWorkerOptions.workerSrc = workerURL;
       return lib;
     })();
     pdfjsReady.catch(() => { pdfjsReady = null; });
@@ -3160,6 +3245,7 @@ function isTyping(t) { return t && (t.tagName === 'INPUT' || t.tagName === 'TEXT
 const KEYS = { v: 'select', a: 'direct', p: 'pen', b: 'pencil', l: 'line', r: 'rect', e: 'ellipse', y: 'polygon', s: 'star', t: 'text', h: 'hand' };
 document.addEventListener('keydown', (e) => {
   if (!$('#dialog').hidden) { if (e.key === 'Escape') $('#dialog').hidden = true; return; }
+  if ($('#toolsView') && !$('#toolsView').hidden) return;   // Shop tools open: no drawing shortcuts
   if (isTyping(e.target)) return;
   const mod = e.ctrlKey || e.metaKey, key = e.key.toLowerCase();
   if (e.code === 'Space' && !spaceDown) { spaceDown = true; setCursor(); e.preventDefault(); return; }
@@ -3253,8 +3339,580 @@ function boot() {
 }
 boot();
 
+// Bridge for the Shop tools view: read the selection, add drawings, follow the unit setting.
+window.studio = {
+  get units() { return doc.units; },
+  setUnits,
+  toast,
+  selectionStats() {
+    let length = 0, pierces = 0, area = 0, count = 0;
+    eachLeaf(selection, (it) => {
+      if (it instanceof CompoundPath) {
+        it.children.forEach((c) => { length += c.length; pierces++; });
+        area += Math.abs(it.area); count++;
+      } else if (it instanceof Path) {
+        length += it.length; pierces++;
+        if (it.closed) area += Math.abs(it.area);
+        count++;
+      }
+    });
+    const b = selBounds();
+    return { count, lengthMM: length, pierces, areaMM2: area, wMM: b ? b.width : 0, hMM: b ? b.height : 0 };
+  },
+  // Add a Paper.js item (built with insert:false, in mm) to the drawing, grow the artboard if needed, select it.
+  addItem(item, name) {
+    if (pen) finishPen();
+    if (name) item.name = name;
+    artLayer.addChild(item);
+    const b = item.strokeBounds;
+    if (b.width > doc.w || b.height > doc.h) {
+      const m = 10;
+      doc.w = Math.ceil(b.width + 2 * m); doc.h = Math.ceil(b.height + 2 * m);
+      drawArtboard(); drawGrid(); syncDocInputs();
+    }
+    item.position = new Point(doc.w / 2, doc.h / 2);
+    setTool('select'); setSelection([item]); fitView(); commit();
+  },
+};
+
 // test hooks (harmless in production)
 window.__vellum = { findAttachments, choose, findLayout, buildLayoutItems, importDWG, dwgToModel, dwgReport, buildDXFItems, ensureLibreDwg, buildSVG, buildPDF, buildDXF, parseDXF, importDXFText, importSVGText, importPDF, openFile, artLayer, doc, setTool, setSelection, get selection() { return selection; }, commit, undo, redo };
+})();
+</script>
+<script>
+/* =========================================================================
+   Shop tools — calculators for the laser shop. Work offline; values are remembered.
+   All lengths are handled in mm internally and shown in the unit chosen in the top bar.
+   ========================================================================= */
+(() => {
+'use strict';
+const S = window.studio;
+if (!S || !window.paper) return;
+const $ = (s, r = document) => r.querySelector(s);
+const MM = { mm: 1, cm: 10, m: 1000, in: 25.4, inch: 25.4, inches: 25.4, '"': 25.4, ft: 304.8, "'": 304.8 };
+const unit = () => (S.units === 'in' ? 'in' : 'mm');
+const KEY = 'studio.tools.v1';
+let store = {};
+try { store = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { store = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) { /* storage off */ } };
+const shared = (store.shared = store.shared || {});     // results passed between tools
+
+// ---------- numbers ----------
+// Lengths accept "41 5/16", "41-5/16", "5/16", "41.303", "1049mm", "3.5 in", "2'".
+function parseLen(str, defUnit) {
+  let s = String(str == null ? '' : str).trim().toLowerCase();
+  if (!s) return NaN;
+  let u = defUnit;
+  const um = s.match(/(mm|cm|m|inches|inch|in|ft|"|')\s*$/);
+  if (um) { u = um[1]; s = s.slice(0, um.index).trim(); }
+  let v;
+  let m;
+  if ((m = s.match(/^(-?\d+(?:\.\d+)?)[\s-]+(\d+)\s*\/\s*(\d+)$/))) v = +m[1] + (+m[2] / +m[3]) * (m[1].startsWith('-') ? -1 : 1);
+  else if ((m = s.match(/^(-?\d+)\s*\/\s*(\d+)$/))) v = +m[1] / +m[2];
+  else if (/^-?\d*\.?\d+(e-?\d+)?$/.test(s)) v = +s;
+  else return NaN;
+  return v * (MM[u] || 1);
+}
+const num = (str) => { const v = parseFloat(String(str).replace(/[$,%\s]/g, '')); return Number.isFinite(v) ? v : NaN; };
+function fraction(inches, den) {
+  const sign = inches < 0 ? '-' : '';
+  const a = Math.abs(inches);
+  let whole = Math.floor(a), n = Math.round((a - whole) * den), d = den;
+  if (n === d) { whole++; n = 0; }
+  while (n && n % 2 === 0) { n /= 2; d /= 2; }
+  const txt = (whole || !n ? String(whole) : '') + (n ? (whole ? ' ' : '') + n + '/' + d : '');
+  return { txt: sign + txt, value: (inches < 0 ? -1 : 1) * (whole + (n / d || 0)) };
+}
+const fmtLen = (mm, digits) => {
+  if (!Number.isFinite(mm)) return '—';
+  if (unit() === 'in') return `${+(mm / 25.4).toFixed(digits == null ? 3 : digits)} in`;
+  return `${+mm.toFixed(digits == null ? 1 : digits)} mm`;
+};
+const fmtArea = (mm2) => (unit() === 'in' ? `${+(mm2 / 645.16).toFixed(2)} in²` : `${+(mm2 / 1e6).toFixed(4)} m²`);
+const money = (v) => (Number.isFinite(v) ? '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—');
+const hms = (sec) => {
+  if (!Number.isFinite(sec)) return '—';
+  sec = Math.round(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return h ? `${h} h ${String(m).padStart(2, '0')} min` : m ? `${m} min ${String(s).padStart(2, '0')} s` : `${s} s`;
+};
+
+// ---------- form helpers ----------
+// A field remembers its text per tool. Length fields store mm so they convert when the unit changes.
+function form(tool, fields, onChange) {
+  const st = (store[tool] = store[tool] || {});
+  const wrap = document.createElement('div');
+  wrap.className = 'tf-grid';
+  const inputs = {};
+  for (const f of fields) {
+    if (f.section) { const h = document.createElement('h4'); h.className = 'tf-sec'; h.textContent = f.section; wrap.appendChild(h); continue; }
+    const row = document.createElement('label');
+    row.className = 'tf-row';
+    const lab = document.createElement('span'); lab.className = 'tf-label'; lab.textContent = f.label;
+    let el;
+    if (f.kind === 'select') {
+      el = document.createElement('select');
+      for (const [v, t] of f.options) { const o = document.createElement('option'); o.value = v; o.textContent = t; el.appendChild(o); }
+      el.value = st[f.key] != null ? st[f.key] : f.def;
+    } else if (f.kind === 'check') {
+      el = document.createElement('input'); el.type = 'checkbox';
+      el.checked = st[f.key] != null ? !!st[f.key] : !!f.def;
+    } else {
+      el = document.createElement('input');
+      el.type = 'text'; el.inputMode = f.kind === 'len' ? 'text' : 'decimal'; el.autocomplete = 'off'; el.spellcheck = false;
+      if (f.kind === 'len') {
+        const mm = st[f.key] != null ? st[f.key] : parseLen(f.def, 'in');
+        el.value = Number.isFinite(mm) ? String(+(mm / (unit() === 'in' ? 25.4 : 1)).toFixed(unit() === 'in' ? 4 : 2)) : '';
+      } else el.value = st[f.key] != null ? st[f.key] : f.def;
+    }
+    el.id = `t-${tool}-${f.key}`;
+    const suf = document.createElement('span'); suf.className = 'tf-suffix';
+    suf.textContent = f.kind === 'len' ? unit() + (f.per || '') : (typeof f.suffix === 'function' ? f.suffix() : f.suffix || '');
+    row.append(lab, el, suf);
+    if (f.hint) { const h = document.createElement('small'); h.className = 'tf-hint'; h.textContent = f.hint; row.appendChild(h); }
+    wrap.appendChild(row);
+    inputs[f.key] = { el, f };
+    el.addEventListener(f.kind === 'select' || f.kind === 'check' ? 'change' : 'input', () => {
+      if (f.kind === 'len') { const mm = parseLen(el.value, unit()); st[f.key] = Number.isFinite(mm) ? mm : null; el.classList.toggle('bad', el.value.trim() !== '' && !Number.isFinite(mm)); }
+      else if (f.kind === 'check') st[f.key] = el.checked;
+      else st[f.key] = el.value;
+      save(); onChange();
+    });
+  }
+  const get = (k) => {
+    const { el, f } = inputs[k];
+    if (f.kind === 'len') return parseLen(el.value, unit());
+    if (f.kind === 'check') return el.checked;
+    if (f.kind === 'select') return el.value;
+    return num(el.value);
+  };
+  const set = (k, v) => {
+    const { el, f } = inputs[k];
+    if (f.kind === 'len') { el.value = String(+(v / (unit() === 'in' ? 25.4 : 1)).toFixed(unit() === 'in' ? 4 : 2)); st[k] = v; }
+    else { el.value = String(v); st[k] = el.value; }
+    save(); onChange();
+  };
+  return { el: wrap, get, set };
+}
+function results(rows) {
+  const t = document.createElement('div'); t.className = 'tf-results';
+  for (const [k, v, big] of rows) {
+    const a = document.createElement('span'); a.textContent = k;
+    const b = document.createElement('b'); b.textContent = v; if (big) b.className = 'big';
+    t.append(a, b);
+  }
+  return t;
+}
+function button(label, fn, primary) {
+  const b = document.createElement('button'); b.className = 'btn' + (primary ? ' primary' : ''); b.type = 'button'; b.textContent = label;
+  b.addEventListener('click', fn); return b;
+}
+const svgNS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs) { const e = document.createElementNS(svgNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+
+// ---------- tools ----------
+const TOOLS = [];
+
+// 1. Fractions
+TOOLS.push({
+  id: 'fraction', name: 'Fractions ↔ decimals', desc: 'Convert between fractional inches, decimal inches and millimetres.',
+  render(box) {
+    const out = document.createElement('div');
+    const f = form('fraction', [{ key: 'v', label: 'Measurement', def: '41 5/16', kind: 'text', hint: 'Type 41 5/16, 41.303, 3/32, 1049mm or 2\'' }], update);
+    box.append(f.el, out);
+    function update() {
+      const raw = $('#t-fraction-v').value;
+      const mm = parseLen(raw, unit());
+      out.textContent = '';
+      if (!Number.isFinite(mm)) { out.appendChild(results([['Result', 'Enter a measurement']])); return; }
+      const inch = mm / 25.4;
+      const rows = [['Decimal inches', `${+inch.toFixed(4)} in`, true], ['Millimetres', `${+mm.toFixed(2)} mm`, true]];
+      for (const den of [16, 32, 64]) {
+        const fr = fraction(inch, den);
+        const err = inch - fr.value;
+        rows.push([`Nearest 1/${den}`, `${fr.txt} in` + (Math.abs(err) > 1e-6 ? `  (${err > 0 ? '+' : ''}${err.toFixed(4)} in off)` : '  (exact)')]);
+      }
+      if (Math.abs(inch) >= 12) { const ft = Math.trunc(inch / 12); rows.push(['Feet + inches', `${ft}' ${fraction(inch - ft * 12, 16).txt}"`]); }
+      out.appendChild(results(rows));
+    }
+    update();
+  },
+});
+
+// 2. Sheet layout
+function nest(SW, SH, pw, ph, gap, margin, allowRotate) {
+  const W = SW - 2 * margin, H = SH - 2 * margin;
+  const grid = (w, h, a, b) => ({ c: a > 0 ? Math.max(0, Math.floor((w + gap) / (a + gap))) : 0, r: b > 0 ? Math.max(0, Math.floor((h + gap) / (b + gap))) : 0 });
+  let best = { n: 0, parts: [], text: 'Part doesn’t fit' };
+  const place = (x0, y0, c, r, a, b, rot, list) => { for (let i = 0; i < c; i++) for (let j = 0; j < r; j++) list.push({ x: x0 + i * (a + gap), y: y0 + j * (b + gap), w: a, h: b, rot }); };
+  const orients = allowRotate ? [[pw, ph, false], [ph, pw, true]] : [[pw, ph, false]];
+  for (const [a, b, rot] of orients) {
+    const g = grid(W, H, a, b);
+    const other = [b, a, !rot];
+    // main grid with fewer columns, rotated parts in the freed strip on the right
+    for (let c = g.c; c >= 0; c--) {
+      const list = []; place(margin, margin, c, g.r, a, b, rot, list);
+      const used = c ? c * (a + gap) : 0;
+      if (allowRotate) { const g2 = grid(W - used, H, other[0], other[1]); place(margin + used, margin, g2.c, g2.r, other[0], other[1], other[2], list); }
+      if (list.length > best.n) best = { n: list.length, parts: list };
+      if (!allowRotate) break;
+    }
+    // main grid with fewer rows, rotated parts in the strip below
+    for (let r = g.r; r >= 0 && allowRotate; r--) {
+      const list = []; place(margin, margin, g.c, r, a, b, rot, list);
+      const used = r ? r * (b + gap) : 0;
+      const g2 = grid(W, H - used, other[0], other[1]); place(margin, margin + used, g2.c, g2.r, other[0], other[1], other[2], list);
+      if (list.length > best.n) best = { n: list.length, parts: list };
+    }
+  }
+  return best;
+}
+TOOLS.push({
+  id: 'sheet', name: 'Sheet layout', desc: 'How many parts fit on a sheet, and how many sheets the job needs.',
+  render(box) {
+    const out = document.createElement('div');
+    const f = form('sheet', [
+      { section: 'Sheet' },
+      { key: 'sw', label: 'Sheet width', def: '96', kind: 'len' },
+      { key: 'sh', label: 'Sheet height', def: '48', kind: 'len' },
+      { key: 'margin', label: 'Edge margin', def: '0.25', kind: 'len' },
+      { section: 'Part' },
+      { key: 'pw', label: 'Part width', def: '41.303', kind: 'len' },
+      { key: 'ph', label: 'Part height', def: '10.5', kind: 'len' },
+      { key: 'gap', label: 'Gap between parts', def: '0.25', kind: 'len', hint: 'Include the kerf here' },
+      { key: 'qty', label: 'Quantity', def: '12', kind: 'num', suffix: 'pcs' },
+      { key: 'rot', label: 'Allow rotating parts', def: true, kind: 'check' },
+    ], update);
+    const draw = button('Draw layout in Studio', () => {
+      const r = last; if (!r || !r.n) return;
+      const g = new paper.Group({ insert: false });
+      g.addChild(new paper.Path.Rectangle({ rectangle: new paper.Rectangle(0, 0, r.SW, r.SH), strokeColor: '#1d2630', strokeWidth: 0.5, insert: false }));
+      for (const p of r.parts) g.addChild(new paper.Path.Rectangle({ rectangle: new paper.Rectangle(p.x, p.y, p.w, p.h), strokeColor: '#0b6f6a', strokeWidth: 0.35, fillColor: 'rgba(11,111,106,0.08)', insert: false }));
+      S.addItem(g, 'Sheet layout'); closeTools(); S.toast(`Drew a ${r.n}-part sheet layout`);
+    });
+    box.append(f.el, out, draw);
+    let last = null;
+    function update() {
+      const SW = f.get('sw'), SH = f.get('sh'), pw = f.get('pw'), ph = f.get('ph'), gap = f.get('gap') || 0, margin = f.get('margin') || 0, qty = Math.max(0, Math.round(f.get('qty') || 0));
+      out.textContent = '';
+      if (![SW, SH, pw, ph].every((v) => v > 0)) { out.appendChild(results([['Result', 'Enter sheet and part sizes']])); last = null; return; }
+      const r = nest(SW, SH, pw, ph, gap, margin, f.get('rot'));
+      r.SW = SW; r.SH = SH; last = r;
+      const sheets = r.n ? Math.ceil(qty / r.n) : 0;
+      const use = sheets ? (qty * pw * ph) / (sheets * SW * SH) : 0;
+      const rotated = r.parts.filter((p) => p.rot).length;
+      shared.perSheet = r.n; save();
+      out.appendChild(results([
+        ['Parts per sheet', r.n ? `${r.n}` + (rotated ? ` (${rotated} rotated)` : '') : 'Part doesn’t fit', true],
+        ['Sheets needed', r.n ? `${sheets} for ${qty} pcs` : '—', true],
+        ['Material used', r.n ? `${(use * 100).toFixed(1)} %` : '—'],
+        ['Spare on last sheet', r.n ? `${sheets * r.n - qty} pcs` : '—'],
+      ]));
+      // diagram
+      const pad = 2, scale = 560 / Math.max(SW, SH);
+      const svg = svgEl('svg', { viewBox: `${-pad} ${-pad} ${SW * scale + 2 * pad} ${SH * scale + 2 * pad}`, class: 'tf-diagram', role: 'img', 'aria-label': `Sheet layout with ${r.n} parts` });
+      svg.appendChild(svgEl('rect', { x: 0, y: 0, width: SW * scale, height: SH * scale, class: 'sheet' }));
+      for (const p of r.parts) svg.appendChild(svgEl('rect', { x: p.x * scale, y: p.y * scale, width: p.w * scale, height: p.h * scale, class: p.rot ? 'part rot' : 'part' }));
+      out.appendChild(svg);
+    }
+    update();
+  },
+});
+
+// 3. Cut time
+TOOLS.push({
+  id: 'cuttime', name: 'Cut time', desc: 'Estimate laser time per part and for the whole job.',
+  render(box) {
+    const out = document.createElement('div');
+    const f = form('cuttime', [
+      { key: 'len', label: 'Cut length per part', def: '103.6', kind: 'len', hint: 'Or select shapes in Studio and use “Measure selection”' },
+      { key: 'pierce', label: 'Pierces per part', def: '1', kind: 'num', suffix: 'each' },
+      { key: 'speed', label: 'Cutting speed', def: '0.8', kind: 'len', per: '/s', hint: 'From your laser’s material settings' },
+      { key: 'passes', label: 'Passes', def: '1', kind: 'num', suffix: '×' },
+      { key: 'ptime', label: 'Pierce time', def: '0.5', kind: 'num', suffix: 's' },
+      { key: 'over', label: 'Travel & overhead', def: '10', kind: 'num', suffix: '%' },
+      { key: 'engrave', label: 'Engrave time per part', def: '0', kind: 'num', suffix: 'min' },
+      { key: 'qty', label: 'Quantity', def: '12', kind: 'num', suffix: 'pcs' },
+    ], update);
+    const measure = button('Measure selection in Studio', () => {
+      const st = S.selectionStats();
+      if (!st.count) { S.toast('Select the shapes to cut in Studio first (close Shop tools, select, then come back).'); return; }
+      f.set('len', st.lengthMM); f.set('pierce', st.pierces);
+      S.toast(`Measured ${st.count} shape${st.count === 1 ? '' : 's'}: ${fmtLen(st.lengthMM)} cut, ${st.pierces} pierce${st.pierces === 1 ? '' : 's'}`);
+    });
+    box.append(f.el, measure, out);
+    function update() {
+      const lenMM = f.get('len'), speed = f.get('speed'), passes = Math.max(1, f.get('passes') || 1);
+      const pierces = Math.max(0, f.get('pierce') || 0), ptime = Math.max(0, f.get('ptime') || 0), over = Math.max(0, f.get('over') || 0) / 100;
+      const engrave = Math.max(0, f.get('engrave') || 0) * 60, qty = Math.max(0, Math.round(f.get('qty') || 0));
+      out.textContent = '';
+      if (!(lenMM >= 0) || !(speed > 0)) { out.appendChild(results([['Result', 'Enter cut length and speed']])); return; }
+      const speedMM = speed;   // stored in mm/s
+      const cut = (lenMM / speedMM) * passes * (1 + over);
+      const per = cut + pierces * ptime * passes + engrave;
+      shared.minutesPerPart = per / 60; save();
+      out.appendChild(results([
+        ['Time per part', hms(per), true],
+        ['Job time', `${hms(per * qty)} for ${qty} pcs`, true],
+        ['Cutting', hms(cut)], ['Piercing', hms(pierces * ptime * passes)], ['Engraving', hms(engrave)],
+      ]));
+    }
+    update();
+  },
+});
+
+// 4. Quote
+TOOLS.push({
+  id: 'quote', name: 'Job quote', desc: 'Material, machine time and extras, per part and for the job.',
+  render(box) {
+    const out = document.createElement('div');
+    const f = form('quote', [
+      { section: 'Material' },
+      { key: 'sheet', label: 'Sheet price', def: '180', kind: 'num', suffix: '$' },
+      { key: 'per', label: 'Parts per sheet', def: '8', kind: 'num', suffix: 'pcs' },
+      { section: 'Labour & machine' },
+      { key: 'mins', label: 'Machine time per part', def: '2.5', kind: 'num', suffix: 'min' },
+      { key: 'rate', label: 'Machine rate', def: '120', kind: 'num', suffix: '$/h' },
+      { key: 'extra', label: 'Extras per part', def: '6', kind: 'num', suffix: '$', hint: 'Film, polishing, packing' },
+      { key: 'setup', label: 'Setup fee (per job)', def: '45', kind: 'num', suffix: '$' },
+      { section: 'Price' },
+      { key: 'markup', label: 'Markup', def: '35', kind: 'num', suffix: '%' },
+      { key: 'qty', label: 'Quantity', def: '12', kind: 'num', suffix: 'pcs' },
+    ], update);
+    const row = document.createElement('div'); row.className = 'tf-actions';
+    row.append(
+      button('Use sheet layout result', () => { if (shared.perSheet) f.set('per', shared.perSheet); else S.toast('Open Sheet layout first to work out parts per sheet.'); }),
+      button('Use cut time result', () => { if (shared.minutesPerPart) f.set('mins', +shared.minutesPerPart.toFixed(2)); else S.toast('Open Cut time first to work out machine time.'); }),
+    );
+    box.append(f.el, row, out);
+    function update() {
+      const sheet = f.get('sheet') || 0, per = f.get('per'), mins = f.get('mins') || 0, rate = f.get('rate') || 0;
+      const extra = f.get('extra') || 0, setup = f.get('setup') || 0, markup = (f.get('markup') || 0) / 100, qty = Math.max(1, Math.round(f.get('qty') || 1));
+      out.textContent = '';
+      if (!(per > 0)) { out.appendChild(results([['Result', 'Enter parts per sheet']])); return; }
+      const material = sheet / per, machine = (mins / 60) * rate, setupEach = setup / qty;
+      const cost = material + machine + extra + setupEach;
+      const price = cost * (1 + markup);
+      out.appendChild(results([
+        ['Price per part', money(price), true], ['Job total', `${money(price * qty)} for ${qty} pcs`, true],
+        ['Material per part', money(material)], ['Machine per part', money(machine)], ['Extras per part', money(extra)],
+        ['Setup per part', money(setupEach)], ['Cost per part', money(cost)], ['Profit on job', money((price - cost) * qty)],
+      ]));
+    }
+    update();
+  },
+});
+
+// 5. Panel maker
+function panelPath(W, H, top, bottom) {
+  // corners clockwise from top-left; each vertex may carry a fillet radius
+  const corner = (spec, x, y, sx, sy, first) => {
+    // sx/sy: direction from the corner into the panel along x and y
+    if (spec.type === 'square') return [{ x, y, r: 0 }];
+    if (spec.type === 'radius') return [{ x, y, r: spec.r }];
+    const h = spec.type === 'angle' ? spec.drop * Math.tan(spec.angle * Math.PI / 180) : spec.h;
+    const v = spec.type === 'angle' ? spec.drop : spec.v;
+    const onY = { x, y: y + sy * v, r: spec.fillet }, onX = { x: x + sx * h, y, r: spec.fillet };
+    return first ? [onY, onX] : [onX, onY];
+  };
+  const pts = [
+    ...corner(top, 0, 0, 1, 1, true),          // top-left: left edge → top edge
+    ...corner(top, W, 0, -1, 1, false),        // top-right: top edge → right edge
+    ...corner(bottom, W, H, -1, -1, true),     // bottom-right: right edge → bottom edge
+    ...corner(bottom, 0, H, 1, -1, false),     // bottom-left: bottom edge → left edge
+  ];
+  const path = new paper.Path({ insert: false, closed: true });
+  const P = (o) => new paper.Point(o.x, o.y);
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const p = P(pts[i]), prev = P(pts[(i - 1 + n) % n]), next = P(pts[(i + 1) % n]);
+    const r = pts[i].r || 0;
+    const d1 = prev.subtract(p), d2 = next.subtract(p);
+    const phi = Math.acos(Math.max(-1, Math.min(1, d1.normalize().dot(d2.normalize()))));
+    if (r > 0 && phi > 1e-3 && phi < Math.PI - 1e-3) {
+      let t = r / Math.tan(phi / 2);
+      const maxT = Math.min(d1.length, d2.length) / 2;
+      const rr = t > maxT ? maxT * Math.tan(phi / 2) : r;
+      t = Math.min(t, maxT);
+      const a = p.add(d1.normalize(t)), b = p.add(d2.normalize(t));
+      const mid = p.add(d1.normalize().add(d2.normalize()).normalize(rr / Math.sin(phi / 2) - rr));
+      if (!path.segments.length) path.moveTo(a); else path.lineTo(a);
+      path.arcTo(mid, b);
+    } else if (!path.segments.length) path.moveTo(p); else path.lineTo(p);
+  }
+  // remove a duplicate closing point if the last arc ended on the first point
+  if (path.segments.length > 1 && path.lastSegment.point.getDistance(path.firstSegment.point) < 1e-9) {
+    path.firstSegment.handleIn = path.lastSegment.handleIn; path.lastSegment.remove();
+  }
+  return path;
+}
+TOOLS.push({
+  id: 'panel', name: 'Panel maker', desc: 'Draw a panel from its dimensions, with square, rounded or chamfered corners.',
+  render(box) {
+    const out = document.createElement('div');
+    const types = [['square', 'Square'], ['radius', 'Rounded'], ['chamfer', 'Chamfer (width × drop)'], ['angle', 'Chamfer (drop + angle)']];
+    const cornerFields = (k, label, d) => [
+      { section: label },
+      { key: k + 'type', label: 'Corner', def: d.type, kind: 'select', options: types },
+      { key: k + 'r', label: 'Radius', def: d.r, kind: 'len' },
+      { key: k + 'h', label: 'Chamfer width', def: d.h, kind: 'len' },
+      { key: k + 'v', label: 'Chamfer drop', def: d.v, kind: 'len', hint: 'How far down the side the chamfer reaches' },
+      { key: k + 'ang', label: 'Angle from vertical', def: d.ang, kind: 'num', suffix: '°' },
+      { key: k + 'fil', label: 'Round chamfer ends', def: d.fil, kind: 'len', hint: '0 for sharp; your K4157064 sheet uses R1 in' },
+    ];
+    const f = form('panel', [
+      { section: 'Size' },
+      { key: 'w', label: 'Width', def: '41.303', kind: 'len' },
+      { key: 'h', label: 'Height', def: '10.5', kind: 'len' },
+      ...cornerFields('t', 'Top corners (both)', { type: 'angle', r: '1', h: '2', v: '3.875', ang: '28.70', fil: '1' }),
+      ...cornerFields('b', 'Bottom corners (both)', { type: 'square', r: '1', h: '2', v: '2', ang: '45', fil: '0' }),
+    ], update);
+    const draw = button('Draw in Studio', () => {
+      const p = build(); if (!p) return;
+      p.strokeColor = '#1d2630'; p.strokeWidth = 0.25; p.fillColor = null;
+      S.addItem(p, 'Panel'); closeTools(); S.toast('Panel drawn — export DXF or PDF for the laser');
+    }, true);
+    box.append(f.el, out, draw);
+    const spec = (k) => ({ type: f.get(k + 'type'), r: f.get(k + 'r') || 0, h: f.get(k + 'h') || 0, v: f.get(k + 'v') || 0, drop: f.get(k + 'v') || 0, angle: f.get(k + 'ang') || 0, fillet: f.get(k + 'fil') || 0 });
+    function build() {
+      const W = f.get('w'), H = f.get('h');
+      if (!(W > 0 && H > 0)) return null;
+      return panelPath(W, H, spec('t'), spec('b'));
+    }
+    function showRows() {
+      for (const k of ['t', 'b']) {
+        const t = f.get(k + 'type');
+        const vis = { r: t === 'radius', h: t === 'chamfer', v: t === 'chamfer' || t === 'angle', ang: t === 'angle', fil: t === 'chamfer' || t === 'angle' };
+        for (const [suffix, on] of Object.entries(vis)) $(`#t-panel-${k}${suffix}`).closest('.tf-row').hidden = !on;
+      }
+    }
+    function update() {
+      showRows();
+      out.textContent = '';
+      const p = build();
+      if (!p) { out.appendChild(results([['Result', 'Enter width and height']])); return; }
+      const top = spec('t');
+      const chamferW = top.type === 'angle' ? top.drop * Math.tan(top.angle * Math.PI / 180) : top.type === 'chamfer' ? top.h : 0;
+      out.appendChild(results([
+        ['Size', `${fmtLen(f.get('w'))} × ${fmtLen(f.get('h'))}`, true],
+        ['Cut length', fmtLen(p.length), true],
+        ['Area', fmtArea(Math.abs(p.area))],
+        ...(chamferW ? [['Top chamfer width', fmtLen(chamferW)]] : []),
+      ]));
+      const b = p.bounds, pad = Math.max(b.width, b.height) * 0.03;
+      const svg = svgEl('svg', { viewBox: `${b.x - pad} ${b.y - pad} ${b.width + 2 * pad} ${b.height + 2 * pad}`, class: 'tf-diagram', role: 'img', 'aria-label': 'Panel preview' });
+      svg.appendChild(svgEl('path', { d: p.pathData, class: 'outline', 'vector-effect': 'non-scaling-stroke' }));
+      out.appendChild(svg);
+    }
+    update();
+  },
+});
+
+// 6. Measure selection
+TOOLS.push({
+  id: 'measure', name: 'Measure selection', desc: 'Cut length, pierces, area and size of the shapes selected in Studio.',
+  render(box) {
+    const out = document.createElement('div');
+    const run = () => {
+      const st = S.selectionStats();
+      out.textContent = '';
+      if (!st.count) { out.appendChild(results([['Nothing selected', 'Close Shop tools, select shapes in Studio, then come back']])); return; }
+      out.appendChild(results([
+        ['Shapes', String(st.count)], ['Cut length', fmtLen(st.lengthMM), true], ['Pierces', String(st.pierces), true],
+        ['Closed area', fmtArea(st.areaMM2)], ['Overall size', `${fmtLen(st.wMM)} × ${fmtLen(st.hMM)}`],
+      ]));
+    };
+    box.append(button('Measure again', run), out);
+    run();
+  },
+});
+
+// 7. Kerf
+TOOLS.push({
+  id: 'kerf', name: 'Kerf compensation', desc: 'What to draw so parts and holes come out at size.',
+  render(box) {
+    const out = document.createElement('div');
+    const f = form('kerf', [
+      { key: 'kerf', label: 'Kerf (cut width)', def: '0.008', kind: 'len', hint: 'Typical CO₂ on acrylic: 0.15–0.25 mm (0.006–0.010 in)' },
+      { key: 'part', label: 'Finished part size', def: '10.5', kind: 'len' },
+      { key: 'hole', label: 'Finished hole size', def: '0.25', kind: 'len' },
+    ], update);
+    box.append(f.el, out);
+    function update() {
+      const k = f.get('kerf'), p = f.get('part'), h = f.get('hole');
+      out.textContent = '';
+      if (!(k >= 0)) { out.appendChild(results([['Result', 'Enter the kerf']])); return; }
+      out.appendChild(results([
+        ['Offset each cut line by', fmtLen(k / 2, unit() === 'in' ? 4 : 3), true],
+        ['Draw the part at', Number.isFinite(p) ? fmtLen(p + k, 4) : '—', true],
+        ['Draw the hole at', Number.isFinite(h) ? fmtLen(Math.max(0, h - k), 4) : '—', true],
+        ['Without compensation', Number.isFinite(p) ? `part ${fmtLen(p - k, 4)}, hole ${Number.isFinite(h) ? fmtLen(h + k, 4) : '—'}` : '—'],
+      ]));
+    }
+    update();
+  },
+});
+
+// 8. Thickness chart
+TOOLS.push({
+  id: 'thick', name: 'Acrylic thickness', desc: 'Nominal sizes and what the sheet actually measures.',
+  render(box) {
+    const rows = [['1/16"', '1.5 mm', '0.059"'], ['3/32"', '2.5 mm', '0.098"'], ['1/8"', '3 mm', '0.118"'], ['3/16"', '4.5 mm', '0.177"'], ['1/4"', '6 mm', '0.236"'],
+      ['5/16"', '8 mm', '0.315"'], ['3/8"', '9 mm', '0.354"'], ['1/2"', '12 mm', '0.472"'], ['5/8"', '15 mm', '0.591"'], ['3/4"', '18 mm', '0.709"'], ['1"', '25 mm', '0.984"']];
+    const t = document.createElement('table'); t.className = 'tf-table';
+    const head = document.createElement('tr'); for (const h of ['Nominal', 'Metric sheet', 'Actual inches']) { const th = document.createElement('th'); th.textContent = h; head.appendChild(th); }
+    t.appendChild(head);
+    for (const r of rows) { const tr = document.createElement('tr'); for (const c of r) { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); } t.appendChild(tr); }
+    const note = document.createElement('p'); note.className = 'tf-hint';
+    note.textContent = 'Extruded and cast sheets vary by about ±10 %. Measure the sheet with calipers before setting a joint or slot width.';
+    const wrap = document.createElement('div'); wrap.className = 'tf-tablewrap'; wrap.appendChild(t);
+    box.append(wrap, note);
+  },
+});
+
+// ---------- view ----------
+const view = document.createElement('div');
+view.className = 'tools-view'; view.id = 'toolsView'; view.hidden = true;
+view.setAttribute('role', 'dialog'); view.setAttribute('aria-modal', 'true'); view.setAttribute('aria-label', 'Shop tools');
+view.innerHTML = `
+  <header class="tv-head">
+    <b>Shop tools</b><span class="tv-sub">work offline · values are remembered</span>
+    <div class="spacer"></div>
+    <div class="unit-switch" role="group" aria-label="Units"><button class="btn" data-tvunit="mm">mm</button><button class="btn" data-tvunit="in">in</button></div>
+    <button class="btn" id="tvClose">Back to drawing</button>
+  </header>
+  <div class="tv-body">
+    <nav class="tv-nav" aria-label="Tools"></nav>
+    <section class="tv-main"><h2 class="tv-title"></h2><p class="tv-desc"></p><div class="tv-tool"></div></section>
+  </div>`;
+document.body.appendChild(view);
+const nav = $('.tv-nav', view);
+let current = store.current && TOOLS.some((t) => t.id === store.current) ? store.current : TOOLS[0].id;
+for (const t of TOOLS) {
+  const b = document.createElement('button'); b.className = 'tv-item'; b.dataset.tool = t.id; b.type = 'button';
+  const n = document.createElement('b'); n.textContent = t.name;
+  const d = document.createElement('span'); d.textContent = t.desc;
+  b.append(n, d);
+  b.addEventListener('click', () => { current = t.id; store.current = t.id; save(); show(); });
+  nav.appendChild(b);
+}
+function show() {
+  const t = TOOLS.find((x) => x.id === current);
+  nav.querySelectorAll('.tv-item').forEach((b) => b.setAttribute('aria-current', String(b.dataset.tool === current)));
+  view.querySelectorAll('[data-tvunit]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tvunit === unit())));
+  $('.tv-title', view).textContent = t.name;
+  $('.tv-desc', view).textContent = t.desc;
+  const box = $('.tv-tool', view); box.textContent = '';
+  t.render(box);
+}
+function openTools() { view.hidden = false; show(); }
+function closeTools() { view.hidden = true; }
+view.querySelectorAll('[data-tvunit]').forEach((b) => b.addEventListener('click', () => { S.setUnits(b.dataset.tvunit); show(); }));
+$('#tvClose', view).addEventListener('click', closeTools);
+document.addEventListener('keydown', (e) => { if (!view.hidden && e.key === 'Escape') closeTools(); }, true);
+const openBtn = document.getElementById('btnTools');
+if (openBtn) openBtn.addEventListener('click', openTools);
+window.shopTools = { open: openTools, close: closeTools, parseLen, fraction, nest, panelPath, TOOLS };
 })();
 </script>
 </body>

@@ -1,0 +1,16 @@
+{
+  "name": "jaydevs-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser vector editor and laser-shop tools. index.html runs as is; build:offline packs every library into one file.",
+  "type": "module",
+  "scripts": {
+    "build:offline": "node scripts/build-offline.mjs"
+  },
+  "devDependencies": {
+    "@mlightcad/libredwg-web": "0.9.4",
+    "jspdf": "2.5.1",
+    "paper": "0.12.17",
+    "pdfjs-dist": "3.11.174"
+  }
+}
