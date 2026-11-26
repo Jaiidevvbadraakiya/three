@@ -54,7 +54,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 /* ---------- top bar ---------- */
-.topbar { display: flex; align-items: center; gap: 6px; overflow-x: auto; flex: none; scrollbar-width: thin; padding-bottom: 2px; }
+.topbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; row-gap: 6px; flex: none; padding-bottom: 2px; }
+.tools-btn { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+@media (max-width: 1440px) { .brand span, #btnZoomIn, #btnZoomOut, #btnHelp { display: none; } }   /* scroll wheel zooms */
 .brand { display: flex; align-items: baseline; gap: 6px; padding-right: 6px; flex: none; }
 .brand b { font-weight: 600; letter-spacing: .02em; font-size: 15px; }
 .brand span { font: 500 10px var(--font-mono); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
@@ -80,6 +82,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .unit-switch .btn:first-child { border-radius: 7px 0 0 7px; }
 .unit-switch .btn:last-child { border-radius: 0 7px 7px 0; border-left: 0; }
 .unit-switch .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.save-to span { max-width: 140px; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
 .zoom-label { flex: none; min-width: 48px; text-align: center; font: 12px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .spacer { flex: 1 0 8px; }
 .only-narrow { display: none; }
@@ -311,6 +314,7 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
     <button class="btn" id="btnNew" title="New drawing (undo brings it back)">New</button>
     <button class="btn" id="btnOpen" title="Open SVG, DXF, DWG, PDF, image or project — replaces the drawing">Open…</button>
     <button class="btn" id="btnPlace" title="Add a file into the current drawing">Place…</button>
+    <button class="btn tools-btn" id="btnTools" title="Calculators for the shop: fractions, sheet layout, cut time, quotes, panels">Shop tools</button>
     <button class="btn hide-narrow" id="btnSaveProject" title="Save an editable project file (.json)">Save project</button>
     <div class="sep"></div>
     <button class="btn icon" id="btnUndo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg></button>
@@ -325,12 +329,12 @@ input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 0; }
       <button class="btn" data-unit="mm" aria-pressed="true">mm</button><button class="btn" data-unit="in" aria-pressed="false">in</button>
     </div>
     <input class="name-input" id="docName" aria-label="File name" value="drawing" spellcheck="false">
+    <button class="btn save-to" id="btnSaveTo" hidden aria-label="Choose where exported files are saved"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>Downloads</span></button>
     <div class="export-group" role="group" aria-label="Export">
       <button class="btn primary" id="expSVG" title="Download SVG">SVG</button>
       <button class="btn primary" id="expPDF" title="Download PDF">PDF</button>
       <button class="btn primary" id="expDXF" title="Download DXF (R12, polylines)">DXF</button>
     </div>
-    <button class="btn" id="btnTools" title="Calculators for the shop: fractions, sheet layout, cut time, quotes, panels">Shop tools</button>
     <button class="btn icon hide-narrow" id="btnHelp" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">?</button>
     <button class="btn only-narrow" id="btnPanel" aria-expanded="false">Properties</button>
   </header>
@@ -1806,7 +1810,133 @@ const dlReady = (async () => {
   try { if (window.claude && typeof window.claude.use === 'function') dlCap = await window.claude.use('downloads'); } catch (e) { dlCap = null; }
 })();
 
+/* ---------- where files are saved ----------
+   Chrome and Edge can write into a folder the user picks (File System Access API). Choices:
+   'downloads' (browser default), 'ask' (Save As window every time) or 'folder' (a remembered folder).
+   The folder handle is kept in IndexedDB; the browser asks again for permission in a new session. */
+const fsSupported = typeof window.showDirectoryPicker === 'function' && typeof window.showSaveFilePicker === 'function' && (() => { try { return window.top === window.self; } catch (e) { return false; } })();
+let saveMode = 'downloads';
+let saveDir = null;
+function kvStore(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('jaydev-studio', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('kv');
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const tx = req.result.transaction('kv', mode);
+      const q = fn(tx.objectStore('kv'));
+      tx.oncomplete = () => resolve(q && q.result);
+      tx.onerror = () => reject(tx.error);
+    };
+  });
+}
+const kvGet = (k) => kvStore('readonly', (st) => st.get(k)).catch(() => null);
+const kvSet = (k, v) => kvStore('readwrite', (st) => st.put(v, k)).catch(() => {});
+async function writeHandle(handle, data, mime) {
+  const w = await handle.createWritable();
+  await w.write(data instanceof Blob ? data : new Blob([data], { type: mime || 'application/octet-stream' }));
+  await w.close();
+}
+async function fileExists(dir, name) { try { await dir.getFileHandle(name); return true; } catch (e) { return false; } }
+async function freeName(dir, name) {
+  const dot = name.lastIndexOf('.');
+  const base = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '';
+  for (let i = 2; i < 1000; i++) { const n = `${base} (${i})${ext}`; if (!(await fileExists(dir, n))) return n; }
+  return `${base} ${Date.now()}${ext}`;
+}
+async function saveViaPicker(filename, data, mime) {
+  const ext = (filename.split('.').pop() || '').toLowerCase();
+  try {
+    const h = await window.showSaveFilePicker({
+      suggestedName: filename, id: 'studio-export', startIn: saveDir || 'documents',
+      types: [{ description: ext.toUpperCase() + ' file', accept: { [mime || 'application/octet-stream']: ['.' + ext] } }],
+    });
+    await writeHandle(h, data, mime);
+    toast('Saved ' + h.name);
+    return true;
+  } catch (e) {
+    if (e && e.name === 'AbortError') { toast('Save cancelled'); return false; }
+    console.warn(e);
+    return 'fallback';
+  }
+}
+async function saveToFolder(filename, data, mime) {
+  try {
+    let perm = saveDir.queryPermission ? await saveDir.queryPermission({ mode: 'readwrite' }) : 'granted';
+    if (perm !== 'granted' && saveDir.requestPermission) perm = await saveDir.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') return 'fallback';
+    let name = filename;
+    if (await fileExists(saveDir, name)) {
+      const pick = await choose(`“${name}” is already in ${saveDir.name}`, 'Replace the existing file, or keep both?', [
+        { value: 'keep', label: 'Keep both', desc: 'Save this one as a numbered copy.', primary: true },
+        { value: 'replace', label: 'Replace', desc: 'Overwrite the file that’s there.' },
+      ], 'cancel');
+      if (pick === 'cancel') { toast('Save cancelled'); return false; }
+      if (pick === 'keep') name = await freeName(saveDir, name);
+    }
+    const fh = await saveDir.getFileHandle(name, { create: true });
+    await writeHandle(fh, data, mime);
+    toast(`Saved ${name} to ${saveDir.name}`);
+    return true;
+  } catch (e) {
+    console.warn(e);
+    return 'fallback';
+  }
+}
+function updateSaveTo() {
+  const b = $('#btnSaveTo');
+  if (!b) return;
+  b.hidden = !fsSupported;
+  const label = saveMode === 'folder' && saveDir ? saveDir.name : saveMode === 'ask' ? 'Ask each time' : 'Downloads';
+  b.querySelector('span').textContent = label;
+  b.title = saveMode === 'folder' && saveDir ? `Exports are saved to the folder “${saveDir.name}”. Click to change.`
+    : saveMode === 'ask' ? 'You pick the folder for every export. Click to change.' : 'Exports go to your Downloads folder. Click to change.';
+}
+async function chooseSaveLocation() {
+  const opts = [];
+  if (saveDir) opts.push({ value: 'folder', label: `Save to “${saveDir.name}”`, desc: 'Every export goes straight into this folder.', primary: saveMode === 'folder' });
+  opts.push(
+    { value: 'pick', label: saveDir ? 'Choose a different folder…' : 'Choose a folder…', desc: 'Pick a folder once (for example the laser job folder); every export goes straight there.', primary: !saveDir && saveMode !== 'ask' },
+    { value: 'ask', label: 'Ask each time', desc: 'A Save As window opens for every export, so you pick the folder and name.', primary: saveMode === 'ask' },
+    { value: 'downloads', label: 'Downloads folder', desc: 'The browser’s normal download folder.', primary: saveMode === 'downloads' },
+  );
+  const pick = await choose('Where should exported files go?', 'This applies to SVG, PDF, DXF, project files and the parts library export.', opts, null);
+  if (!pick) return;
+  if (pick === 'pick') {
+    try {
+      saveDir = await window.showDirectoryPicker({ id: 'studio-export', mode: 'readwrite', startIn: saveDir || 'documents' });
+      await kvSet('saveDir', saveDir);
+      saveMode = 'folder';
+      toast(`Exports will be saved to “${saveDir.name}”`);
+    } catch (e) {
+      if (!(e && e.name === 'AbortError')) toast('Couldn’t use that folder: ' + (e && e.message));
+      return;
+    }
+  } else {
+    saveMode = pick;
+    toast(pick === 'ask' ? 'You’ll choose where to save each export' : pick === 'folder' ? `Exports will be saved to “${saveDir.name}”` : 'Exports will go to your Downloads folder');
+  }
+  try { localStorage.setItem('studio.saveMode', saveMode); } catch (e) { /* storage off */ }
+  updateSaveTo();
+}
+async function initSaveTo() {
+  if (!fsSupported) { updateSaveTo(); return; }
+  try { saveMode = localStorage.getItem('studio.saveMode') || 'downloads'; } catch (e) { saveMode = 'downloads'; }
+  saveDir = await kvGet('saveDir');
+  if (saveMode === 'folder' && !saveDir) saveMode = 'downloads';
+  updateSaveTo();
+}
 async function saveFile(filename, data, mime) {
+  let note = '';
+  if (fsSupported && saveMode === 'ask') {
+    const r = await saveViaPicker(filename, data, mime);
+    if (r !== 'fallback') return r;
+    note = ' (the Save As window wasn’t available)';
+  } else if (fsSupported && saveMode === 'folder' && saveDir) {
+    const r = await saveToFolder(filename, data, mime);
+    if (r !== 'fallback') return r;
+    note = ` (couldn’t write to “${saveDir.name}”: allow access, or choose the folder again with Save to)`;
+  }
   if (dlCap) {
     try { await dlCap.save({ filename, data }); toast('Saved ' + filename); return true; }
     catch (err) {
@@ -1823,9 +1953,11 @@ async function saveFile(filename, data, mime) {
   a.href = URL.createObjectURL(blob); a.download = filename; a.rel = 'noopener';
   document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
-  toast('Downloaded ' + filename);
+  toast('Downloaded ' + filename + note, note ? 6000 : 2800);
   return true;
 }
+$('#btnSaveTo').addEventListener('click', chooseSaveLocation);
+initSaveTo();
 
 /* ---------- geometry walk shared by PDF and DXF writers ---------- */
 function geomOf(item, parentM) {
