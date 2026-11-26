@@ -2053,13 +2053,14 @@ function placeImported(item, sizeMM, fileName, mode) {
     }
     drawArtboard(); syncDocInputs();
   } else {
+    const target = selection.length ? selBounds() : null;
     const b = item.bounds;
     const maxW = doc.w * 0.9, maxH = doc.h * 0.9;
     if (b.width > maxW * 3 || b.height > maxH * 3 || b.width < 1 && b.height < 1) {
       const s = Math.min(maxW / (b.width || 1), maxH / (b.height || 1));
       if (Number.isFinite(s) && s > 0) item.scale(s);
     }
-    item.position = new Point(doc.w / 2, doc.h / 2);
+    item.position = target ? target.center : new Point(doc.w / 2, doc.h / 2);
   }
   setTool('select');
   setSelection([item]);
@@ -2774,9 +2775,35 @@ function buildLayoutItems(db, modelItems, showAll) {
   out.push(...built.items);
   return { items: out, name: lay.name, windows: lay.windows.length, skipped: paper.skipped + built.skipped };
 }
+// Files a DWG shows but doesn't contain: PDF underlays (e.g. an engraving logo), raster images and
+// external drawings. Image paths come from IMAGEDEF objects; underlay and xref paths are found by
+// scanning the file's text (ANSI before AutoCAD 2007, UTF-16 after).
+function findAttachments(buf, db, ownName) {
+  const names = new Map();
+  const add = (path, scanned) => {
+    const base = String(path || '').split(/[\\/]/).pop().replace(/^[^A-Za-z0-9_]+/, '').trim();
+    // attached images are always registered as IMAGEDEF objects; from the raw text scan only PDF underlays
+    // and external drawings count (other image names there are AutoCAD's own material textures)
+    if (!base || base.length > 120 || !(scanned ? /\.(pdf|dwg|dxf)$/i : /\.(pdf|png|jpe?g|tiff?|bmp|gif|dwg|dxf)$/i).test(base)) return;
+    if (ownName && base.toLowerCase() === ownName.toLowerCase()) return;
+    const key = base.toLowerCase();
+    if (!names.has(key)) names.set(key, base);
+  };
+  for (const d of (db.objects && db.objects.IMAGEDEF) || []) add(d.fileName);
+  const bytes = new Uint8Array(buf);
+  const re = /[A-Za-z0-9_ .\-]{1,80}\.(?:pdf|dwg|dxf)\b/gi;   // a file name, no folders
+  const scan = (text) => { for (const m of text.match(re) || []) add(m, true); };
+  try { scan(new TextDecoder('latin1').decode(bytes)); } catch (e) { /* ignore */ }
+  try {
+    const n = bytes.length & ~1;
+    scan(new TextDecoder('utf-16le').decode(bytes.subarray(0, n)));
+    scan(new TextDecoder('utf-16le').decode(bytes.subarray(1, 1 + ((bytes.length - 1) & ~1))));
+  } catch (e) { /* ignore */ }
+  return Array.from(names.values()).slice(0, 8);
+}
 // In-page choice dialog (the viewer blocks window.confirm). Resolves with the chosen value;
 // closing the dialog picks the first option.
-function choose(title, text, options) {
+function choose(title, text, options, closeValue) {
   return new Promise((resolve) => {
     let done = false;
     const finish = (v) => { if (done) return; done = true; $('#dialog').hidden = true; resolve(v); };
@@ -2793,7 +2820,7 @@ function choose(title, text, options) {
       wrap.appendChild(b);
     }
     dialog(title, text, wrap);
-    $('#dlgClose').addEventListener('click', () => finish(options[0].value), { once: true });
+    $('#dlgClose').addEventListener('click', () => finish(closeValue !== undefined ? closeValue : options[0].value), { once: true });
   });
 }
 async function importDWG(buf, fileName, mode) {
@@ -2866,6 +2893,16 @@ async function importDWG(buf, fileName, mode) {
     + (conv.source === 'paper' ? ' (from the paper-space layout)' : conv.source === 'blocks' ? ' · the main drawing couldn’t be read, so its parts (blocks) are laid out side by side' : '')
     + (ratio ? ` · scaled 1:${ratio} to fit an A3 sheet — Undo for real size` : '')
     + (sk ? ` · ${sk} unsupported (pattern hatches, 3D solids, images, leaders) skipped` : ''), 6000);
+  const attached = findAttachments(buf, db, fileName);
+  if (attached.length && conv.source !== 'blocks') {
+    const list = attached.join(', ');
+    const go = await choose('This drawing uses files that aren’t inside it',
+      `AutoCAD shows these files on the drawing, but their artwork is stored separately: ${list}. ` +
+      'Select the part you want them on, then place the file — it will be centred on your selection.',
+      [{ value: 'place', label: 'Place a file…', desc: 'Pick the PDF or image (for example the logo PDF) to add it to this drawing.', primary: true },
+       { value: 'skip', label: 'Not now', desc: 'You can add it later with Place… in the top bar.' }], 'skip');
+    if (go === 'place') { fileMode = 'place'; $('#fileInput').value = ''; $('#fileInput').click(); }
+  }
   if (conv.source === 'blocks') {
     const ta = document.createElement('textarea'); ta.readOnly = true;
     ta.value = dwgReport(db, String.fromCharCode(...new Uint8Array(buf, 0, 6)));
@@ -3217,7 +3254,7 @@ function boot() {
 boot();
 
 // test hooks (harmless in production)
-window.__vellum = { choose, findLayout, buildLayoutItems, importDWG, dwgToModel, dwgReport, buildDXFItems, ensureLibreDwg, buildSVG, buildPDF, buildDXF, parseDXF, importDXFText, importSVGText, importPDF, openFile, artLayer, doc, setTool, setSelection, get selection() { return selection; }, commit, undo, redo };
+window.__vellum = { findAttachments, choose, findLayout, buildLayoutItems, importDWG, dwgToModel, dwgReport, buildDXFItems, ensureLibreDwg, buildSVG, buildPDF, buildDXF, parseDXF, importDXFText, importSVGText, importPDF, openFile, artLayer, doc, setTool, setSelection, get selection() { return selection; }, commit, undo, redo };
 })();
 </script>
 </body>
